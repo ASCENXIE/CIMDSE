@@ -1,0 +1,278 @@
+# System-level accelerator built from four SRAM-CIM tiles.
+#
+# Modeled boundary:
+#   LPDDR DRAM -> 384 KiB shared GlobalBuffer -> 1x4 tile NoC
+#   -> four tiles -> two 6 KiB line FIFOs + four black-box macros per tile.
+#
+# The macro's internal SRAM, multipliers, adder tree, and shift-add circuitry remain
+# opaque. Their aggregate area, cycle period, and energy are taken from the compiler
+# characterization. DRAM and NoC values are explicit system assumptions.
+
+{{include_text('_include.yaml')}}
+
+arch:
+  variables:
+    <<: *variables_global
+
+    # Physical system organization. Four macros in a tile share one input vector and
+    # produce 4 x 8 = 32 output values in parallel. Four tiles form a 1x4 array.
+    macros_per_tile: 4
+    tile_array_x: 4
+    tile_array_y: 1
+    n_tiles: tile_array_x * tile_array_y
+    n_macros: n_tiles * macros_per_tile
+    global_buffer_size_bits: 384 * 1024 * 8
+    global_buffer_banks: 16
+    global_buffer_width_bits: 512
+    # The mapper uses this aggregate capacity to test tile feasibility. Physically it
+    # is implemented as two line FIFOs, each holding half of the rolling input state.
+    tile_input_buffer_size_bits: {{TILE_INPUT_BUFFER_KIB | default(12)}} * 1024 * 8
+    tile_input_buffer_width_bits: 512
+    line_fifo_count: 2
+    line_fifo_size_bits: tile_input_buffer_size_bits / line_fifo_count
+    line_fifo_width_bits: tile_input_buffer_width_bits
+
+    # Black-box macro contract.
+    macro_reduction_inputs: 512
+    macro_logical_outputs: 8
+    macro_capacity_bits: 64 * 1024
+    input_bits_per_cycle: 1
+    logical_array_rows: macro_reduction_inputs
+    logical_array_columns: macro_logical_outputs
+
+    # Parser compatibility for the shared CIM helpers. These neutral values are not
+    # internal component models and carry no cost.
+    cim_unit_width_cells: 1
+    cim_unit_depth_cells: 1
+    bits_per_cell: 1
+    encoded_input_bits: input_bits
+    encoded_weight_bits: weight_bits
+    encoded_output_bits: output_bits
+    input_encoding_func: offset_encode_hist
+    weight_encoding_func: offset_encode_hist
+    signed_sum_across_inputs: False
+    signed_sum_across_weights: False
+    voltage_dac_resolution: 1
+    temporal_dac_resolution: 1
+    adc_resolution: 0
+    n_adc_per_bank: 0
+
+    # Macro characterization.
+    characterized_energy_efficiency_tops_per_w: lookup_cim_macro_efficiency(macro_reduction_inputs, macro_logical_outputs, supported_weight_bits, supported_input_bits, 'energy_efficiency')
+    macro_cycle_period: 1.4278e-9
+    cycle_period: macro_cycle_period
+    read_pulse_width: macro_cycle_period
+    macro_area: 320252.5e-12
+    macro_ops_per_full_vmm: 2 * macro_reduction_inputs * macro_logical_outputs
+    macro_bit_cycles_per_full_vmm: ceil(supported_input_bits / input_bits_per_cycle)
+    macro_peak_tops: macro_ops_per_full_vmm / macro_bit_cycles_per_full_vmm / macro_cycle_period / 1e12
+    macro_energy_per_full_vmm: macro_ops_per_full_vmm / characterized_energy_efficiency_tops_per_w / 1e12
+    macro_energy_per_bit_cycle: macro_energy_per_full_vmm / macro_bit_cycles_per_full_vmm
+
+    # System assumptions agreed for the first model.
+    dram_bandwidth_bits_per_s: 38.4e9 * 8
+    dram_energy_per_bit: 7.03e-12
+    noc_link_bits_per_cycle: 512
+    noc_energy_per_bit_per_hop: 0.25e-12
+    # Assume the GlobalBuffer injects at one end of the 1x4 tile chain. Distances to
+    # Tile0..Tile3 are 0, 1, 2, and 3 hops, respectively.
+    noc_average_hops: 1.5
+
+  extra_attributes_for_all_component_models:
+    tech_node: tech_node
+    cycle_period: macro_cycle_period
+
+  nodes:
+  # Off-chip DRAM. Area and leakage are outside the accelerator-die boundary.
+  - !Memory
+    name: MainMemory
+    size: inf
+    area: 0
+    leak_power: 0
+    tensors: {keep: ~Intermediates, may_keep: All}
+    total_latency: max(a.n_calls / a.throughput for a in actions)
+    actions:
+    - {name: read, energy: dram_energy_per_bit, throughput: dram_bandwidth_bits_per_s}
+    - {name: write, energy: dram_energy_per_bit, throughput: dram_bandwidth_bits_per_s}
+
+  # Shared 384 KiB on-chip SRAM. SmartBufferSRAM estimates access cost and area; sixteen
+  # banks expose parallel accesses to the macro array.
+  - !Memory
+    name: GlobalBuffer
+    component_class: SmartBufferSRAM
+    size: global_buffer_size_bits
+    tensors: {keep: All}
+    total_latency: max(a.n_calls / a.throughput for a in actions)
+    actions:
+    - {name: read, bits_per_action: global_buffer_width_bits}
+    - {name: write, bits_per_action: global_buffer_width_bits}
+    extra_attributes_for_component_model:
+      n_banks: global_buffer_banks
+      n_rw_ports: 2
+
+  # The physical system contains a 1x4 inter-tile NoC. This zero-cost Container marks
+  # its location in
+  # the hierarchy. AccelForge's Network node cannot currently analyze convolution
+  # sliding-window (partially-relevant) transfers, so the system runner calculates
+  # mesh hop energy and bandwidth explicitly from the physical macro schedule.
+  - !Container
+    name: MacroNoC
+
+  # Four tiles form a 1x4 array. Tiles process independent output positions and reuse
+  # the same weights. They communicate through MacroNoC.
+  - !Container
+    name: TileArray
+    spatial:
+    - name: tile_x
+      fanout: tile_array_x
+      reuse: weight
+      power_gateable: True
+
+  # Logical storage point used by the mapper to enforce the 12 KiB per-tile input
+  # working-set constraint. Its physical implementation and traffic are modeled below
+  # as two line FIFOs because FFM cannot express partially-relevant sliding windows.
+  - !Memory
+    name: TileInputBuffer
+    component_class: Dummy
+    size: tile_input_buffer_size_bits
+    tensors: {keep: input}
+    total_latency: max(a.n_calls / a.throughput for a in actions)
+    actions:
+    - {name: read, energy: 0, throughput: inf, bits_per_action: tile_input_buffer_width_bits}
+    - {name: write, energy: 0, throughput: inf, bits_per_action: tile_input_buffer_width_bits}
+    area: 0
+    leak_power: 0
+
+  # Two physical FIFO banks retain rolling rows for convolution. For 3x3 layers each
+  # bank carries one prior row; for the 7x7 stem each bank carries three prior rows.
+  # They intentionally keep no mapper tensor: the system runner supplies their exact
+  # sliding-window actions after mapping.
+  - !Memory
+    name: LineFifo0
+    component_class: SmartBufferSRAM
+    size: line_fifo_size_bits
+    tensors: {keep: Nothing}
+    total_latency: max(a.n_calls / a.throughput for a in actions)
+    actions:
+    - {name: read, bits_per_action: line_fifo_width_bits}
+    - {name: write, bits_per_action: line_fifo_width_bits}
+    extra_attributes_for_component_model:
+      n_banks: 1
+      n_rw_ports: 1
+      width: line_fifo_width_bits
+
+  - !Memory
+    name: LineFifo1
+    component_class: SmartBufferSRAM
+    size: line_fifo_size_bits
+    tensors: {keep: Nothing}
+    total_latency: max(a.n_calls / a.throughput for a in actions)
+    actions:
+    - {name: read, bits_per_action: line_fifo_width_bits}
+    - {name: write, bits_per_action: line_fifo_width_bits}
+    extra_attributes_for_component_model:
+      n_banks: 1
+      n_rw_ports: 1
+      width: line_fifo_width_bits
+
+  # Each tile contains four macros. The input is shared inside the tile, while each
+  # macro owns a different group of eight output channels. Tile-local input broadcast
+  # is currently treated as part of the system integration and has no separate cost.
+  - !Container
+    name: MacrosInTile
+    spatial:
+    - name: macro_in_tile
+      fanout: macros_per_tile
+      reuse: input
+      power_gateable: True
+
+  # One physical 64 Kb macro at each MacrosInTile coordinate. All internal costs are zero
+  # here because the weight-stationary DSE scheduler applies characterized macro
+  # energy once per physical VMM invocation.
+  - !Memory
+    name: DigitalSramMacro
+    component_class: Dummy
+    size: macro_capacity_bits
+    tensors:
+      keep: weight
+      no_refetch_from_above: weight
+      force_memory_hierarchy_order: True
+    area: macro_area
+    leak_power: 0
+    actions:
+    - {name: read, energy: 0, throughput: inf}
+    - {name: write, energy: 0, throughput: inf}
+
+  # Known logical interface of each black-box macro. These nodes expose mapping
+  # capacity only and do not claim a particular internal circuit implementation.
+  - !Container
+    name: MacroOutputLane
+    spatial:
+    - name: column_ARRAY_COLUMNS
+      fanout: macro_logical_outputs
+      reuse: input
+
+  - !Container
+    name: MacroReductionLane
+    spatial:
+    - name: row_ARRAY_ROWS
+      fanout: macro_reduction_inputs
+      reuse: output
+
+  - !Compute
+    name: FreeCompute
+    component_class: Dummy
+    enabled: len(All) == 3
+
+
+variables:
+  inputs_hist: [1, 1, 1, 1, 1, 1, 1]
+  weights_hist: [1, 1, 1, 1, 1, 1, 1]
+  outputs_hist: inputs_hist
+
+  supported_input_bits: 8
+  supported_weight_bits: 8
+  supported_output_bits: 8
+  min_supported_input_bits: 1
+  min_supported_weight_bits: 1
+  min_supported_output_bits: 1
+
+  voltage: 0.72
+  tech_node: 22e-9
+  voltage_energy_scale: (voltage / 0.72) ** 2
+
+
+# Candidate macro library for system-level design-space exploration. This phase fixes
+# the output width at eight columns and varies only reduction depth. Energy efficiency
+# and area efficiency are looked up from cim_macro_efficiency.csv using the global 8b
+# input/weight precision. Tile inventories select a subset of this library without
+# changing the characterization source.
+macro_types:
+  m32x8: {rows: 32, columns: 8}
+  m64x8: {rows: 64, columns: 8}
+  m128x8: {rows: 128, columns: 8}
+  m256x8: {rows: 256, columns: 8}
+  m512x8: {rows: 512, columns: 8}
+
+# Per-Tile physical macro inventory. The current mapping endpoint is homogeneous, so
+# this baseline contains one type. A future DSE case can use, for example,
+# {m512x8: 2, m256x8: 2}; the loader already validates the descriptions and inventory.
+tile_macro_inventory:
+  m512x8: 4
+
+
+# Standalone smoke-test workload. The system runner replaces this with ResNet-18.
+workload:
+  rank_sizes:
+    M: 16
+    N: 32
+    K: 512
+
+  einsums:
+  - name: Matmul
+    tensor_accesses:
+    - {name: input, projection: [m, k], bits_per_value: 8}
+    - {name: weight, projection: [k, n], bits_per_value: 8}
+    - {name: output, projection: [m, n], output: True, bits_per_value: 8}
+
+renames: {}
