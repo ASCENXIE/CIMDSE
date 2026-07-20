@@ -65,6 +65,11 @@ class MacroLibrary:
 
     macro_types: dict[str, MacroType]
     tile_inventory: dict[str, int]
+    output_register_entry_bits: int
+    max_macro_types_per_tile: int
+    tile_output_lanes: int
+    tech_node: float
+    weight_load_rows_per_cycle: int
 
     def homogeneous_mapping_macro(self, variables) -> MacroType:
         """Return the active type when the AccelForge endpoint is homogeneous.
@@ -146,4 +151,19 @@ def load_sram_macro_library(config_name: str) -> MacroLibrary:
         raise ValueError(f"Tile inventory references unknown macro types: {sorted(unknown)}")
     if not any(count > 0 for count in tile_inventory.values()):
         raise ValueError("Tile macro inventory must contain at least one active macro.")
-    return MacroLibrary(macro_types=macro_types, tile_inventory=tile_inventory)
+    output_register_entry_bits = int(arch_variables["macro_output_register_entry_bits"])
+    max_macro_types_per_tile = int(arch_variables["max_macro_types_per_tile"])
+    tile_output_lanes = int(arch_variables["tile_output_lanes"])
+    tech_node = float(variables["tech_node"])
+    weight_load_rows_per_cycle = int(
+        arch_variables["macro_weight_load_rows_per_cycle"]
+    )
+    return MacroLibrary(
+        macro_types=macro_types,
+        tile_inventory=tile_inventory,
+        output_register_entry_bits=output_register_entry_bits,
+        max_macro_types_per_tile=max_macro_types_per_tile,
+        tile_output_lanes=tile_output_lanes,
+        tech_node=tech_node,
+        weight_load_rows_per_cycle=weight_load_rows_per_cycle,
+    )

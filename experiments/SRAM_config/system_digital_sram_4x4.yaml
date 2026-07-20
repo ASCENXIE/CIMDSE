@@ -3,6 +3,8 @@
 # Modeled boundary:
 #   LPDDR DRAM -> 384 KiB shared GlobalBuffer -> 1x4 tile NoC
 #   -> four tiles -> two 6 KiB line FIFOs + four black-box macros per tile.
+# Each macro has a private rows-by-8-bit ping-pong input register and one
+# 8-channel-by-25-bit output register bank.
 #
 # The macro's internal SRAM, multipliers, adder tree, and shift-add circuitry remain
 # opaque. Their aggregate area, cycle period, and energy are taken from the compiler
@@ -39,6 +41,28 @@ arch:
     input_bits_per_cycle: 1
     logical_array_rows: macro_reduction_inputs
     logical_array_columns: macro_logical_outputs
+
+    # Per-Macro Tile interface registers. The input side has two banks so one input
+    # vector can be loaded while the other is consumed. The output side is a single
+    # bank (not ping-pong) holding one 25-bit local partial sum per output channel.
+    macro_input_register_banks: 2
+    macro_input_register_entry_bits: supported_input_bits
+    macro_input_register_bank_size_bits: macro_reduction_inputs * macro_input_register_entry_bits
+    macro_input_register_total_size_bits: macro_input_register_banks * macro_input_register_bank_size_bits
+    macro_output_register_banks: 1
+    macro_output_register_entries: macro_logical_outputs
+    macro_output_register_entry_bits: 25
+    macro_output_register_size_bits: macro_output_register_entries * macro_output_register_entry_bits
+
+    # Tile integration limits. A composition may contain any number of Macro
+    # instances within the capacity/area window, but at most two distinct Macro
+    # types. Up to four output lanes are active per layer; Macro results assigned to
+    # the same lane are accumulated, while different lanes remain independent.
+    max_macro_types_per_tile: 2
+    tile_output_lanes: 4
+    # Each Macro has an independent weight-programming port. One physical row (all
+    # eight columns) is loaded per Macro cycle. Weight-load energy is currently zero.
+    macro_weight_load_rows_per_cycle: 1
 
     # Parser compatibility for the shared CIM helpers. These neutral values are not
     # internal component models and carry no cost.
@@ -185,6 +209,45 @@ arch:
       fanout: macros_per_tile
       reuse: input
       power_gateable: True
+
+  # Every Macro owns two rows-by-8-bit input-register banks. These explicit Ping and
+  # Pong nodes encode the physical double-buffering rule. They intentionally keep no
+  # mapper tensor and carry zero cost until register characterization is available;
+  # the Tile DSE scheduler will account for their physical accesses separately.
+  - !Memory
+    name: MacroInputRegisterPing
+    component_class: Dummy
+    size: macro_input_register_bank_size_bits
+    tensors: {keep: Nothing}
+    area: 0
+    leak_power: 0
+    actions:
+    - {name: read, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
+    - {name: write, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
+
+  - !Memory
+    name: MacroInputRegisterPong
+    component_class: Dummy
+    size: macro_input_register_bank_size_bits
+    tensors: {keep: Nothing}
+    area: 0
+    leak_power: 0
+    actions:
+    - {name: read, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
+    - {name: write, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
+
+  # One non-ping-pong output-register bank per Macro stores eight 25-bit local partial
+  # sums. Wider cross-Macro or multi-wave accumulation remains a Tile-level function.
+  - !Memory
+    name: MacroOutputRegister
+    component_class: Dummy
+    size: macro_output_register_size_bits
+    tensors: {keep: Nothing}
+    area: 0
+    leak_power: 0
+    actions:
+    - {name: read, energy: 0, throughput: inf, bits_per_action: macro_output_register_entry_bits}
+    - {name: write, energy: 0, throughput: inf, bits_per_action: macro_output_register_entry_bits}
 
   # One physical 64 Kb macro at each MacrosInTile coordinate. All internal costs are zero
   # here because the weight-stationary DSE scheduler applies characterized macro
