@@ -55,13 +55,29 @@ arch:
     macro_output_register_size_bits: macro_output_register_entries * macro_output_register_entry_bits
 
     # Tile integration limits. A composition may contain any number of Macro
-    # instances within the capacity/area window, but at most two distinct Macro
+    # instances within the runner's peak-compute window, but at most two distinct Macro
     # types. Up to four output lanes are active per layer; Macro results assigned to
     # the same lane are accumulated, while different lanes remain independent.
     max_macro_types_per_tile: 2
     tile_output_lanes: 4
-    # Each Macro has an independent weight-programming port. One physical row (all
-    # eight columns) is loaded per Macro cycle. Weight-load energy is currently zero.
+    tile_output_register_entries: tile_output_lanes * macro_logical_outputs
+    # Features and weights share one Tile ingress bus. A cycle carries exactly one
+    # traffic class; bus arbitration overhead is handled above the Tile boundary.
+    tile_shared_bus_width_bits: 512
+    # Feature ingress remains 512 bit/cycle. Weight mode is serialized to
+    # 64 bit/cycle for fair Macro-composition comparison.
+    tile_weight_bus_width_bits: 64
+    tile_bus_energy_per_bit: 0.0
+    # Tile timing contract. Only per-Macro ping-pong input registers are present;
+    # there is no Tile SRAM large enough to retain a complete layer input. Timing
+    # is accumulated per N-block/K-wave as W + max(F, C), without fill/drain.
+    tile_retain_features_across_nblocks: False
+    tile_allow_intra_bank_weight_compute_overlap: False
+    vit_allow_cross_bank_weight_compute_overlap: True
+    tile_latency_batch_granularity: "nblock_kwave"
+    tile_include_pipeline_fill_drain: False
+    # Each Macro accepts at most one physical weight row per cycle. The Tile
+    # weight path is intentionally one 64-bit row per cycle.
     macro_weight_load_rows_per_cycle: 1
 
     # Parser compatibility for the shared CIM helpers. These neutral values are not
@@ -83,7 +99,12 @@ arch:
 
     # Macro characterization.
     characterized_energy_efficiency_tops_per_w: lookup_cim_macro_efficiency(macro_reduction_inputs, macro_logical_outputs, supported_weight_bits, supported_input_bits, 'energy_efficiency')
-    macro_cycle_period: 1.4278e-9
+    # The characterized TOPS/W includes active-state static power. Tile DSE splits
+    # that energy into 95% dynamic and 5% static. Macro-specific partial-row dynamic
+    # coefficients are stored with each entry in macro_types below.
+    macro_static_power_fraction: 0.05
+    # 400 MHz operating point shared by Macro compute and the default on-chip links.
+    macro_cycle_period: 2.5e-9
     cycle_period: macro_cycle_period
     read_pulse_width: macro_cycle_period
     macro_area: 320252.5e-12
@@ -236,8 +257,9 @@ arch:
     - {name: read, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
     - {name: write, energy: 0, throughput: inf, bits_per_action: macro_input_register_entry_bits}
 
-  # One non-ping-pong output-register bank per Macro stores eight 25-bit local partial
-  # sums. Wider cross-Macro or multi-wave accumulation remains a Tile-level function.
+  # Mapper-compatibility placeholder only. The Tile DSE accounts for one physical
+  # non-ping-pong bank of 32 x 25-bit output registers per Tile, independent of the
+  # Macro count; this zero-cost node does not define the DSE area or access count.
   - !Memory
     name: MacroOutputRegister
     component_class: Dummy
@@ -311,11 +333,33 @@ variables:
 # input/weight precision. Tile inventories select a subset of this library without
 # changing the characterization source.
 macro_types:
-  m32x8: {rows: 32, columns: 8}
-  m64x8: {rows: 64, columns: 8}
-  m128x8: {rows: 128, columns: 8}
-  m256x8: {rows: 256, columns: 8}
-  m512x8: {rows: 512, columns: 8}
+  m32x8:
+    rows: 32
+    columns: 8
+    macro_partial_vmm_fixed_energy: 56.77126143438238e-12
+    macro_partial_vmm_energy_per_active_row: 0.7258980801755507e-12
+  m64x8:
+    rows: 64
+    columns: 8
+    macro_partial_vmm_fixed_energy: 96.52411517183711e-12
+    macro_partial_vmm_energy_per_active_row: 0.47614490409539745e-12
+  m128x8:
+    rows: 128
+    columns: 8
+    macro_partial_vmm_fixed_energy: 116.67678947338607e-12
+    macro_partial_vmm_energy_per_active_row: 0.43598031273562526e-12
+  m256x8:
+    rows: 256
+    columns: 8
+    macro_partial_vmm_fixed_energy: 202.61576175034622e-12
+    macro_partial_vmm_energy_per_active_row: 0.3661864076238677e-12
+  m512x8:
+    rows: 512
+    columns: 8
+    # Measured active-power shape: P(N)=4.793 mW+0.004984375 mW/row*N.
+    # Preserve the characterized full-row dynamic energy while adopting this ratio.
+    macro_partial_vmm_fixed_energy: 298.2047314093936e-12
+    macro_partial_vmm_energy_per_active_row: 0.31011145589791284e-12
 
 # Per-Tile physical macro inventory. The current mapping endpoint is homogeneous, so
 # this baseline contains one type. A future DSE case can use, for example,

@@ -1,58 +1,85 @@
 # SRAM-CIM Design Space Exploration
 
-This directory contains the source configuration and scripts for Macro-Tile-Core-System
-resource exploration. The current Tile-DSE scope models Macro VMM energy, Aladdin
-input/output-register dynamic energy, abstract vector psum energy, and single-Tile
-weight-stationary scheduling.
+This directory contains the SRAM-CIM Tile DSE code, configuration,
+documentation, fixed inputs, and generated results. The active result sets are
+the ResNet-18 and ViT-B/16 Tile DSEs using Macro energy model v5. ResNet-18
+completed all 48 fixed-panel Tiles; ViT-B/16 retains 10 explicitly recorded
+timeout-skipped Tiles.
 
-## Source Layout
+## Directory Map
 
-- `SRAM_config/`: AccelForge architecture and Macro type table.
-- `docs/SRAM_DATA/`: characterized Macro efficiency table.
-- `RUN/`: Macro library loader, ResNet-18 scheduler, and visualization script.
-- `results/`: generated output, ignored by Git.
+```text
+experiments/
+├── SRAM_config/          AccelForge architecture and Macro configuration
+├── docs/
+│   ├── SRAM_DATA/        characterized Macro efficiency input
+│   └── tile_DSE/         current Tile model, constraints, ViT pipeline, fixed panel
+├── RUN/
+│   ├── tile_DSE/         active CNN Tile DSE implementation
+│   │   └── vit/          isolated ViT pipeline DSE and visualization
+│   └── *.py              shared models used by the active Tile DSE
+└── results/
+    └── tile_DSE/
+        ├── resnet18_v6/            current complete ResNet-18 results
+        └── vision_transformer_v5/  current ViT results (38/48 completed)
+```
 
-## Run
+Generated Python caches, completed-run checkpoints, pre-v5 Tile results, and
+obsolete Core/System code and results are intentionally removed. Reproducible
+search inputs are retained as the frozen panel, configuration, source code, and
+formal CSVs.
+
+## Current Model
+
+- Technology: 22 nm, 0.72 V, 400 MHz.
+- Macro types: `32x8`, `64x8`, `128x8`, `256x8`, and `512x8`.
+- Tile output lanes: 4.
+- Feature ingress bandwidth: 512 bits/cycle.
+- Weight ingress bandwidth: 64 bits/cycle; FEATURE/WEIGHT traffic is exclusive.
+- Maximum Macro types per Tile: 2.
+- Candidate compute window: `0.4608 TOPS +/-20%`.
+- Partial-row energy: Macro-specific `E_fixed + E_rows * active_rows`.
+- Energy-model version: `partial_row_measured_slope_all_macros_..._v5`.
+
+The v5 model preserves each Macro's full-row TOPS/W energy and applies the
+measured `m512x8` row-slope correction to all Macro sizes. See
+`docs/tile_DSE/TILE_DSE_SEARCH_CONDITIONS.md` for the exact coefficients and
+assumptions.
+
+## Active ViT DSE
+
+The current ViT-B/16 workload uses 192 tokens.
+
+The formal search evaluates the frozen 48-design panel, caps physical bank
+partitions at 8 per design, and skips a design after 600 seconds:
+
+```bash
+third_party/accelforge/.venv/bin/python -u \
+  experiments/RUN/tile_DSE/vit/run_vit_tile_bayesian_dse.py \
+  --partition-budget 8 \
+  --design-timeout-s 600 \
+  --output-dir experiments/results/tile_DSE/vision_transformer_v5
+```
+
+Regenerate all ViT figures without rerunning the search:
 
 ```bash
 third_party/accelforge/.venv/bin/python \
-  experiments/RUN/run_sram_resnet18_tile_scheduler.py
-
-third_party/accelforge/.venv/bin/python \
-  experiments/RUN/generate_sram_resnet18_tile_scheduler_visualization.py
-
-third_party/accelforge/.venv/bin/python \
-  experiments/RUN/run_sram_tile_dse.py \
-  --all-layers --capacity-tolerance 0.20 --area-tolerance 0.20
-
-third_party/accelforge/.venv/bin/python \
-  experiments/RUN/run_sram_tile_bayesian_dse.py \
-  --design-budget 40 --initial-designs 16 --batch-size 4 --workers 2 \
-  --latency-cap-ratio 2.0 --local-pareto-epsilon 0.001 --resume
-
-third_party/accelforge/.venv/bin/python \
-  experiments/RUN/generate_sram_tile_dse_pareto.py
+  experiments/RUN/tile_DSE/vit/generate_vit_tile_dse_visualizations.py \
+  --result-dir experiments/results/tile_DSE/vision_transformer_v5
 ```
 
-Each Macro has two `rows x 8-bit` ping-pong input-register banks and one non-ping-pong
-`8 x 25-bit` output-register bank. Per VMM invocation, the energy model charges one
-full input-bank read and write plus one output-bank read and write. Aladdin register
-area is included in the Tile area and area-tolerance filter. Each Macro independently
-loads one valid eight-weight row per cycle; loads do not overlap computation on the
-same Macro, but different Macros may load in parallel. Weight-load energy is zero.
-The model excludes
-ping-pong control, fixed bank overhead, input broadcast, output reduction, multi-Macro
-synchronization, register latency, line FIFOs, GLB, NoC, DRAM, leakage, and data-transfer
-latency.
-Each Tile may contain at most two distinct Macro types, with any instance count that
-also satisfies the capacity/area window. A layer activates one to four output lanes;
-Macro results in the same lane are accumulated, while different lanes calculate
-independent output blocks.
-The exhaustive Tile DSE defaults to representative ResNet-18 layers
-`T0,T1,T7,T12,T17,T20`. The Bayesian runner searches the outer Tile-composition
-space while retaining exact per-layer Macro grouping and N-block assignment. Its
-checkpoints can be resumed without reevaluating completed Tile designs. Cross-layer
-energy-latency states use a recorded epsilon compression and a default cap of 512
-states per Tile. The default scheduler also limits each layer to twice the latency of
-a simple feasible schedule and applies a 0.1% local Pareto epsilon. CSV output reports
-row utilization, temporal Macro utilization, and their product separately.
+The fixed input panel is stored at
+`docs/tile_DSE/frozen_panels/resnet18_tile_panel_48.csv`; it is independent of
+deleted pre-v5 CNN result directories.
+
+## Verification
+
+```bash
+third_party/accelforge/.venv/bin/python -m unittest \
+  experiments.RUN.tile_DSE.test_sram_tile_dse \
+  experiments.RUN.tile_DSE.vit.test_vit_tile_dse
+```
+
+Future Core/System exploration must be rebuilt against the current Tile model
+before system-level results are used.
