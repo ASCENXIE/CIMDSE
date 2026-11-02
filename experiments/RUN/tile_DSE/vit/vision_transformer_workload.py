@@ -1,4 +1,4 @@
-"""Compact, corrected ViT-B/16 workload used by the ViT Tile DSE."""
+"""Corrected ViT workloads used by the ViT Tile DSE."""
 
 from __future__ import annotations
 
@@ -21,23 +21,28 @@ class VitOperatorGroup:
         return self.shape.macs * self.repeat
 
 
-def vit_b16_operator_groups(batch_size: int = 1) -> tuple[VitOperatorGroup, ...]:
-    """Return the GEMMs in ViT-B/16, including corrected attention shapes.
+def _vit_operator_groups(
+    *,
+    batch_size: int,
+    tokens: int,
+    heads: int,
+    hidden_dimension: int,
+    mlp_dimension: int,
+    blocks: int,
+) -> tuple[VitOperatorGroup, ...]:
+    """Build a ViT workload with explicit sequence and hidden dimensions.
 
     Attention folds ``batch * heads * query_tokens`` into output_positions.
     This preserves all 192 query tokens that are absent from the generic
     two-dimensional attention representation in the upstream example YAML.
     """
 
-    if batch_size < 1:
-        raise ValueError("batch_size must be positive")
+    if batch_size < 1 or tokens < 1 or heads < 1 or hidden_dimension < 1:
+        raise ValueError("workload dimensions and batch_size must be positive")
+    if hidden_dimension % heads:
+        raise ValueError("hidden_dimension must be divisible by heads")
 
-    tokens = 192
-    heads = 12
-    head_dimension = 64
-    hidden_dimension = 768
-    mlp_dimension = 3072
-    blocks = 12
+    head_dimension = hidden_dimension // heads
     attention_positions = batch_size * heads * tokens
 
     return (
@@ -86,5 +91,35 @@ def vit_b16_operator_groups(batch_size: int = 1) -> tuple[VitOperatorGroup, ...]
     )
 
 
+def vit_b16_operator_groups(batch_size: int = 1) -> tuple[VitOperatorGroup, ...]:
+    """Return the corrected ViT-B/16 workload (192 tokens, 768 hidden)."""
+
+    return _vit_operator_groups(
+        batch_size=batch_size,
+        tokens=192,
+        heads=12,
+        hidden_dimension=768,
+        mlp_dimension=3072,
+        blocks=12,
+    )
+
+
+def vit_l16_operator_groups(batch_size: int = 1) -> tuple[VitOperatorGroup, ...]:
+    """Return ViT-L/16 with 192 tokens and 1024 hidden dimension."""
+
+    return _vit_operator_groups(
+        batch_size=batch_size,
+        tokens=192,
+        heads=16,
+        hidden_dimension=1024,
+        mlp_dimension=4096,
+        blocks=24,
+    )
+
+
 def vit_b16_macs(batch_size: int = 1) -> int:
     return sum(group.macs for group in vit_b16_operator_groups(batch_size))
+
+
+def vit_l16_macs(batch_size: int = 1) -> int:
+    return sum(group.macs for group in vit_l16_operator_groups(batch_size))

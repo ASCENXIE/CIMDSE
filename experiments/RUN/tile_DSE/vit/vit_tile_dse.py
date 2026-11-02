@@ -21,11 +21,13 @@ from tile_DSE.sram_tile_dse import (
 from tile_DSE.vit.vision_transformer_workload import (
     VitOperatorGroup,
     vit_b16_operator_groups,
+    vit_l16_operator_groups,
 )
 
 
 PIPELINE_MODEL_VERSION = "vit_pipeline_nblock_wave_timing_v4"
 WORKLOAD_MODEL_VERSION = "vit_b16_192_tokens_corrected_attention_axis_v2"
+VIT_L16_WORKLOAD_MODEL_VERSION = "vit_l16_192_tokens_1024_hidden_corrected_attention_axis_v1"
 
 _ENERGY_KEYS = (
     "macro_dynamic_energy_j",
@@ -38,6 +40,24 @@ _ENERGY_KEYS = (
     "weight_load_energy_j",
     "bus_energy_j",
 )
+
+
+def operator_groups_for_workload(
+    workload_model: str, batch_size: int = 1
+) -> tuple[VitOperatorGroup, ...]:
+    if workload_model == "vit_b16":
+        return vit_b16_operator_groups(batch_size)
+    if workload_model == "vit_l16":
+        return vit_l16_operator_groups(batch_size)
+    raise ValueError(f"unsupported ViT workload model: {workload_model}")
+
+
+def workload_version(workload_model: str) -> str:
+    if workload_model == "vit_b16":
+        return WORKLOAD_MODEL_VERSION
+    if workload_model == "vit_l16":
+        return VIT_L16_WORKLOAD_MODEL_VERSION
+    raise ValueError(f"unsupported ViT workload model: {workload_model}")
 
 
 @dataclass(frozen=True)
@@ -333,11 +353,13 @@ def evaluate_vit_design(
     local_state_cap: int = 4096,
     aggregate_state_cap: int = 256,
     partition_budget: int = 0,
+    workload_model: str = "vit_b16",
     partial_path: Path | None = None,
 ) -> tuple[list[dict[str, float | int | str]], list[dict[str, float | int | str]]]:
     """Evaluate one physical Tile under the ViT two-stream pipeline model."""
 
-    groups = vit_b16_operator_groups(batch_size)
+    groups = operator_groups_for_workload(workload_model, batch_size)
+    workload_model_version = workload_version(workload_model)
     projection_groups = tuple(group for group in groups if group.stream == "projection")
     attention_groups = tuple(group for group in groups if group.stream == "attention")
     endpoint_groups = tuple(group for group in groups if group.stream == "endpoint")
@@ -347,7 +369,7 @@ def evaluate_vit_design(
     checkpoint_signature = (
         ENERGY_MODEL_VERSION,
         PIPELINE_MODEL_VERSION,
-        WORKLOAD_MODEL_VERSION,
+        workload_model_version,
         design.name,
         batch_size,
         latency_cap_ratio,
@@ -396,7 +418,7 @@ def evaluate_vit_design(
                 "bank_lane_budget": lanes,
                 "bank_assignment": assignment,
                 "pipeline_model_version": PIPELINE_MODEL_VERSION,
-                "workload_model_version": WORKLOAD_MODEL_VERSION,
+                "workload_model_version": workload_model_version,
             }
             enriched.append(item)
             layer_rows.append(item)
@@ -518,7 +540,7 @@ def evaluate_vit_design(
                     "bank_assignment_count": len(assignments),
                     "energy_model_version": ENERGY_MODEL_VERSION,
                     "pipeline_model_version": PIPELINE_MODEL_VERSION,
-                    "workload_model_version": WORKLOAD_MODEL_VERSION,
+                    "workload_model_version": workload_model_version,
                 }
             )
     aggregate_rows = _front(

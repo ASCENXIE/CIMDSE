@@ -1,4 +1,4 @@
-"""Generate publication-ready visualizations for the ViT-B/16 Tile DSE."""
+"""Generate publication-ready visualizations for a ViT Tile DSE."""
 
 from __future__ import annotations
 
@@ -22,9 +22,9 @@ from matplotlib.lines import Line2D
 
 ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_RESULT_DIR = (
-    ROOT / "experiments" / "results" / "tile_DSE" / "vision_transformer_v5"
+    ROOT / "experiments" / "results" / "tile_DSE" / "vision_transformer_l16_v2"
 )
-PREFIX = "vit_b16_pipeline_tile_dse"
+PREFIX = "vit_l16_pipeline_tile_dse"
 TARGET_DESIGN = "1xm64x8+1xm512x8"
 CLASS_COLORS = {"homogeneous": "#d97706", "heterogeneous": "#2474a6"}
 ACCENT = "#b42318"
@@ -43,6 +43,11 @@ def parse_args() -> argparse.Namespace:
         default=PREFIX,
         help="input and output filename prefix",
     )
+    parser.add_argument(
+        "--workload-label",
+        default="ViT-L/16",
+        help="workload name used in figure titles",
+    )
     return parser.parse_args()
 
 
@@ -51,6 +56,36 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         raise FileNotFoundError(f"required DSE result is missing: {path}")
     with path.open(newline="") as file:
         return list(csv.DictReader(file))
+
+
+def pareto_rows(
+    rows: list[dict[str, str]], objectives: tuple[str, ...]
+) -> list[dict[str, str]]:
+    """Return exact nondominated mappings for minimization objectives."""
+
+    front = []
+    for candidate in rows:
+        values = tuple(value(candidate, name) for name in objectives)
+        dominated = False
+        for other in rows:
+            if other is candidate:
+                continue
+            other_values = tuple(value(other, name) for name in objectives)
+            if all(left <= right for left, right in zip(other_values, values)) and any(
+                left < right for left, right in zip(other_values, values)
+            ):
+                dominated = True
+                break
+        if not dominated:
+            front.append(candidate)
+    return sorted(front, key=lambda row: tuple(value(row, name) for name in objectives))
+
+
+def write_csv(path: Path, rows: list[dict[str, str]]) -> None:
+    with path.open("w", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def value(row: dict[str, str], name: str) -> float:
@@ -79,11 +114,15 @@ def group_by_design(rows: list[dict[str, str]]) -> dict[str, list[dict[str, str]
 def coverage_text(samples: list[dict[str, str]]) -> str:
     completed = sum(row["evaluation_status"] == "completed" for row in samples)
     timed_out = sum(row["evaluation_status"] == "timeout_skipped" for row in samples)
+    complexity_skipped = sum(
+        row["evaluation_status"] == "complexity_skipped" for row in samples
+    )
     timeout = float(samples[0]["design_timeout_s"]) if samples else 0.0
     budget = int(samples[0]["partition_budget"]) if samples else 0
     return (
-        f"fixed panel: {completed}/{len(samples)} completed, {timed_out} timed out at "
-        f"{timeout:g} s; partition budget {budget}"
+        f"fixed panel: {completed}/{len(samples)} completed, {timed_out} timed out, "
+        f"{complexity_skipped} complexity-skipped; {timeout:g} s timeout, "
+        f"partition budget {budget}"
     )
 
 
@@ -161,6 +200,162 @@ def energy_area_front(
             front.append(row)
             best_energy = energy
     return front
+
+
+def edp_area_rows(
+    summary: list[dict[str, str | float | int]],
+) -> list[dict[str, str | float | int]]:
+    rows = []
+    for row in summary:
+        rows.append(
+            {
+                **row,
+                "EDP_mJ_ms": float(row["min_edp_mJ_ms"]),
+                "EDAP_mJ_ms_mm2": float(row["min_edp_mJ_ms"])
+                * float(row["tile_area_mm2"]),
+            }
+        )
+    return rows
+
+
+def edp_area_front(
+    rows: list[dict[str, str | float | int]],
+) -> list[dict[str, str | float | int]]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (float(row["tile_area_mm2"]), float(row["EDP_mJ_ms"])),
+    )
+    front = []
+    best_edp = float("inf")
+    for row in ordered:
+        candidate_edp = float(row["EDP_mJ_ms"])
+        if candidate_edp < best_edp:
+            front.append(row)
+            best_edp = candidate_edp
+    return front
+
+
+def draw_edp_area_and_edap_ranking(
+    result_dir: Path,
+    prefix: str,
+    summary: list[dict[str, str | float | int]],
+    samples: list[dict[str, str]],
+) -> None:
+    rows = edp_area_rows(summary)
+    front = edp_area_front(rows)
+    front_designs = {str(row["design"]) for row in front}
+    class_styles = {
+        "homogeneous": ("o", "#2e86ab"),
+        "heterogeneous": ("s", "#c75b39"),
+    }
+    subtitle = coverage_text(samples)
+
+    figure, axis = plt.subplots(figsize=(9.2, 6.5))
+    for tile_class, (marker, color) in class_styles.items():
+        for on_front, size, alpha, edgecolor, linewidth, zorder in (
+            (False, 48, 0.48, "none", 0.0, 1),
+            (True, 86, 0.96, "#202020", 1.0, 3),
+        ):
+            subset = [
+                row
+                for row in rows
+                if row["tile_class"] == tile_class
+                and (str(row["design"]) in front_designs) == on_front
+            ]
+            axis.scatter(
+                [float(row["tile_area_mm2"]) for row in subset],
+                [float(row["EDP_mJ_ms"]) for row in subset],
+                marker=marker,
+                color=color,
+                s=size,
+                alpha=alpha,
+                edgecolors=edgecolor,
+                linewidths=linewidth,
+                zorder=zorder,
+            )
+    # Label every architecture on the EDP-area front; dominated points remain
+    # intentionally unlabeled so the frontier is readable in a paper figure.
+    label_offsets = {
+        "3xm32x8+3xm128x8": (8, 12),
+        "4xm128x8": (8, -20),
+        "2xm128x8+1xm256x8": (8, 16),
+        "1xm512x8": (-62, 18),
+        "1xm32x8+1xm512x8": (8, 28),
+        "2xm32x8+1xm512x8": (-104, 22),
+        "1xm64x8+1xm512x8": (12, -12),
+    }
+    fallback_offsets = ((8, 10), (-72, 10), (8, -20), (-72, -20))
+    for index, row in enumerate(front):
+        design = str(row["design"])
+        offset = label_offsets.get(design, fallback_offsets[index % len(fallback_offsets)])
+        axis.annotate(
+            design_label(design),
+            (float(row["tile_area_mm2"]), float(row["EDP_mJ_ms"])),
+            xytext=offset,
+            textcoords="offset points",
+            fontsize=7.5,
+            color="#202020",
+            arrowprops={"arrowstyle": "-", "color": "#666666", "lw": 0.55},
+            zorder=5,
+        )
+    axis.set_title(f"{WORKLOAD_LABEL} Tile EDP versus Area\n{subtitle}")
+    axis.set_xlabel(r"Tile area (mm$^2$)")
+    axis.set_ylabel(r"Energy-delay product (mJ$\cdot$ms)")
+    axis.grid(alpha=0.24)
+    axis.set_axisbelow(True)
+    axis.legend(
+        handles=[
+            Line2D([], [], marker="o", linestyle="", color="#2e86ab", label="Homogeneous"),
+            Line2D([], [], marker="s", linestyle="", color="#c75b39", label="Heterogeneous"),
+            Line2D([], [], marker="o", linestyle="", markerfacecolor="none", markeredgecolor="#202020", label="EDP-Area Pareto"),
+        ],
+        frameon=False,
+    )
+    figure.tight_layout()
+    figure.savefig(result_dir / f"{prefix}_edp_area_pareto.png", dpi=220)
+    figure.savefig(result_dir / f"{prefix}_edp_area_pareto.pdf")
+    plt.close(figure)
+
+    ordered = sorted(
+        rows,
+        key=lambda row: (float(row["EDAP_mJ_ms_mm2"]), str(row["design"])),
+    )[:10]
+    figure, axis = plt.subplots(figsize=(11.5, 6.5))
+    axis.barh(
+        range(len(ordered)),
+        [float(row["EDAP_mJ_ms_mm2"]) for row in ordered],
+        color=[
+            "#2e86ab" if row["tile_class"] == "homogeneous" else "#c75b39"
+            for row in ordered
+        ],
+        alpha=0.88,
+        height=0.72,
+    )
+    axis.set_yticks(
+        range(len(ordered)),
+        [design_label(str(row["design"])) for row in ordered],
+    )
+    axis.invert_yaxis()
+    axis.set_xlabel(r"Energy $\times$ Delay $\times$ Area (mJ$\cdot$ms$\cdot$mm$^2$)")
+    axis.set_ylabel("Tile architecture (best at top)")
+    axis.set_title(f"{WORKLOAD_LABEL} Tile Energy-Delay-Area Top 10\n{subtitle}")
+    axis.grid(axis="x", alpha=0.24)
+    axis.set_axisbelow(True)
+    axis.legend(
+        handles=[
+            Line2D([], [], marker="s", linestyle="", color="#2e86ab", label="Homogeneous"),
+            Line2D([], [], marker="s", linestyle="", color="#c75b39", label="Heterogeneous"),
+        ],
+        frameon=False,
+        loc="upper right",
+    )
+    figure.tight_layout()
+    figure.savefig(result_dir / f"{prefix}_edap_ranking.png", dpi=220)
+    figure.savefig(result_dir / f"{prefix}_edap_ranking.pdf")
+    plt.close(figure)
+
+    write_summary(result_dir / f"{prefix}_edp_area_pareto.csv", front)
+    write_summary(result_dir / f"{prefix}_edap_ranking.csv", ordered)
 
 
 def annotate(
@@ -255,7 +450,7 @@ def draw_energy_latency(
     )
     annotate(axis, target, "64 + 512\n512 projection / 64 attention", (-16, 35))
     figure.suptitle(
-        "ViT-B/16 Tile DSE: Energy-Latency Search Result\n"
+        f"{WORKLOAD_LABEL} Tile DSE: Energy-Latency Search Result\n"
         + coverage_text(samples),
         fontsize=14,
     )
@@ -355,7 +550,7 @@ def draw_energy_latency_area(
     colorbar = figure.colorbar(projection, ax=axis_2d, pad=0.018)
     colorbar.set_label("Tile area (mm$^2$)")
     figure.suptitle(
-        "ViT-B/16 Tile DSE: Energy-Latency-Area Pareto\n"
+        f"{WORKLOAD_LABEL} Tile DSE: Energy-Latency-Area Pareto\n"
         f"{coverage_text(samples)}; {len(eta_front):,} Pareto mappings",
         fontsize=14,
     )
@@ -434,7 +629,7 @@ def draw_energy_area(
     colorbar = figure.colorbar(all_points, ax=axis, pad=0.015)
     colorbar.set_label("Latency of minimum-energy mapping (ms)")
     axis.set_title(
-        "ViT-B/16 Tile DSE: Energy-Area Pareto\n" + coverage_text(samples),
+        f"{WORKLOAD_LABEL} Tile DSE: Energy-Area Pareto\n" + coverage_text(samples),
         fontsize=14,
     )
     axis.set_xlabel("Tile area (mm$^2$)")
@@ -550,7 +745,7 @@ def draw_architecture_summary(
     ranking.set_axisbelow(True)
     ranking.margins(x=0.14)
     figure.suptitle(
-        "ViT-B/16 Tile Architecture Comparison\n" + coverage_text(samples),
+        f"{WORKLOAD_LABEL} Tile Architecture Comparison\n" + coverage_text(samples),
         fontsize=14,
     )
     figure.tight_layout(rect=(0, 0, 1, 0.93))
@@ -560,11 +755,23 @@ def draw_architecture_summary(
 
 
 def main() -> None:
+    global WORKLOAD_LABEL
     args = parse_args()
+    WORKLOAD_LABEL = args.workload_label
     result_dir = args.result_dir.resolve()
     aggregate = read_csv(result_dir / f"{args.prefix}_aggregate.csv")
-    el_front = read_csv(result_dir / f"{args.prefix}_aggregate_pareto.csv")
-    eta_front = read_csv(result_dir / f"{args.prefix}_aggregate_pareto_eta.csv")
+    el_path = result_dir / f"{args.prefix}_aggregate_pareto.csv"
+    eta_path = result_dir / f"{args.prefix}_aggregate_pareto_eta.csv"
+    el_front = read_csv(el_path) if el_path.is_file() else pareto_rows(
+        aggregate, ("fabric_energy_mJ", "latency_ms")
+    )
+    eta_front = read_csv(eta_path) if eta_path.is_file() else pareto_rows(
+        aggregate, ("fabric_energy_mJ", "latency_ms", "tile_area_mm2")
+    )
+    if not el_path.is_file():
+        write_csv(el_path, el_front)
+    if not eta_path.is_file():
+        write_csv(eta_path, eta_front)
     samples = read_csv(result_dir / f"{args.prefix}_bayesian_samples.csv")
     if TARGET_DESIGN not in {row["design"] for row in aggregate}:
         raise ValueError(f"target design is absent from completed results: {TARGET_DESIGN}")
@@ -582,6 +789,7 @@ def main() -> None:
     draw_energy_latency_area(result_dir, args.prefix, eta_front, samples)
     draw_energy_area(result_dir, args.prefix, summary, ea_front, samples)
     draw_architecture_summary(result_dir, args.prefix, summary, samples)
+    draw_edp_area_and_edap_ranking(result_dir, args.prefix, summary, samples)
 
     target = next(row for row in summary if row["design"] == TARGET_DESIGN)
     print(f"Completed architectures: {len(summary)}")
@@ -600,6 +808,10 @@ def main() -> None:
         "energy_latency_area_pareto.pdf",
         "architecture_summary.png",
         "architecture_summary.pdf",
+        "edp_area_pareto.png",
+        "edp_area_pareto.pdf",
+        "edap_ranking.png",
+        "edap_ranking.pdf",
     ):
         print(result_dir / f"{args.prefix}_{suffix}")
 

@@ -1,5 +1,101 @@
 # SRAM-CIM Tile DSE Handoff
 
+## 2026-08-13：创新点一核心结果图（当前会话进度）
+
+### 当前论文目标
+
+用户已经完成动机图，当前任务是为 TCAS-II 五页论文生成一张紧凑的核心结果图，
+直接说明异构 Tile 在 ResNet-18 与 ViT-L/16 上的 EDP--面积权衡，并展示论文选用的
+`64+512` Tile 相对同构基线及 Pareto 前沿的位置。
+
+核心图采用以下口径：
+
+1. 每个点代表一个 Tile 架构，而不是该架构的一条任意映射。
+2. 对每个 Tile 的全部映射，先选取 `energy * latency` 最小的映射。
+3. 再以该最小 EDP 和 Tile 面积计算架构级 EDP--Area Pareto 前沿。
+4. 同构 Tile 使用蓝色圆点，异构 Tile 使用橙色方点；Pareto 点增加黑色轮廓。
+5. `64+512` 保持异构 Tile 的橙色编码，并额外使用黑色空心方框标示为论文选定设计。
+
+### 使用的数据
+
+- ResNet-18：
+  `experiments/results/tile_DSE/resnet18_v6/tile_window_dse_aggregate.csv`
+- ViT-L/16：
+  `experiments/results/tile_DSE/vision_transformer_l16_v2/vit_l16_pipeline_tile_dse_aggregate.csv`
+- ViT-L/16 v2 已完成：共解析 71 个候选，其中 36 个完成，35 个因单点 600 s
+  超时而跳过，0 个复杂度预过滤跳过。日志位于
+  `experiments/results/tile_DSE/vision_transformer_l16_v2/vit_l16_dse_run.log`。
+
+### 已创建的文件
+
+- 绘图脚本：
+  `experiments/RUN/tile_DSE/generate_innovation1_core_result.py`
+- 核心结果图 PNG：
+  `paper/figures/innovation1/tile_dse_core_result.png`
+- 核心结果图 PDF：
+  `paper/figures/innovation1/tile_dse_core_result.pdf`
+- 完整架构级 Pareto 数据表：
+  `paper/tables/innovation1_core_result_pareto.csv`
+
+当前已生成的图为 7.16 x 2.75 inch 的双子图：左侧 ResNet-18，右侧 ViT-L/16；
+横轴为 Tile area，纵轴为 Minimum EDP。PNG 为 600 dpi，PDF 为矢量版本。
+
+### 关键结果
+
+- ResNet-18 中 `64+512`：面积 `0.228076 mm^2`，能量 `0.283968 mJ`，
+  延迟 `14.15776 ms`，EDP `4.02036 mJ*ms`，位于当前 EDP--Area Pareto 前沿。
+- ViT-L/16 中 `64+512`：面积 `0.228076 mm^2`，能量 `7.994920 mJ`，
+  延迟 `388.07284 ms`，EDP `3102.61133 mJ*ms`，为当前已完成候选中的最低 EDP，
+  同时位于 EDP--Area Pareto 前沿。
+- ViT-L/16 的最低 EDP 同构基线为 `512`：EDP `3510.18372 mJ*ms`；因此
+  `64+512` 相对该同构基线降低 EDP 约 `11.61%`。
+
+### 核心结果图验证状态
+
+绘图脚本已修改为只文字标注两个关键点：
+
+- 最低 EDP 的同构基线（`Best homogeneous`）；
+- 论文选定的 `64+512`（`Selected`）。
+
+所有 Pareto 点仍通过黑色轮廓显示，完整组合保留在 CSV 中。这一改动是为了避免在
+双栏论文宽度下标注所有 Pareto 组合造成文字重叠。
+
+2026-08-13 已使用项目虚拟环境重新生成 PNG/PDF 并目视检查。首次生成时两个
+`Selected` 标签靠近下边界，其中 ViT 标签被裁切；随后将两个标签移到数据点右上方并
+再次生成。当前磁盘上的 PNG/PDF 已确认两个面板的关键标签均位于坐标轴内，互不重叠，
+箭头未遮挡关键数据点。生成命令为：
+
+```bash
+third_party/accelforge/.venv/bin/python \
+  experiments/RUN/tile_DSE/generate_innovation1_core_result.py
+```
+
+不要使用系统 `/usr/bin/python3`，其缺少 `matplotlib`；项目虚拟环境已经验证可以正常
+生成图片。绘图脚本的 `py_compile` 与 `git diff --check` 也已通过。
+
+### 后续论文呈现建议
+
+2026-08-13 已恢复一张与核心 Pareto 图口径一致的双 workload EDAP 排行图：
+
+- `paper/figures/innovation1/tile_dse_edap_ranking.png`
+- `paper/figures/innovation1/tile_dse_edap_ranking.pdf`
+- `paper/tables/innovation1_core_result_edap_ranking.csv`
+
+排行使用每个架构的最低 EDP 映射计算 EDAP，展示各 workload Top 10，并强制补入
+`64+512`、`2x256` 和单个 `512` 比较设计。当前 `64+512` 在 ResNet-18 排第 1、在
+ViT-L/16 排第 2；ViT 的 `2x256` 排第 31，图中采用截断条但标出真实 EDAP，避免拉伸
+横轴后掩盖 Top-10 差异。
+
+这张图应作为创新点一的主结果图，而不是列举全部搜索点的说明图。正文只需强调：
+
+1. 异构 Tile 扩展了同构 Tile 的 EDP--面积折中边界；
+2. `64+512` 在两个结构差异明显的视觉负载上都位于前沿；
+3. 它在 ViT-L/16 上相对最佳同构 EDP 基线取得约 11.61% 改善，说明细粒度 Macro
+   可以补偿大 Macro 的利用率损失，同时保留大 Macro 的能效优势。
+
+如果版面仍然紧张，正文保留该双子图和一张 4 行左右的数值对比表即可；无需再放
+单独的 EDAP Top-10 排行图。
+
 ## 2026-07-22: 400 MHz operating point
 
 - `experiments/SRAM_config/system_digital_sram_4x4.yaml` now sets

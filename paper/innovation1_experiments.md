@@ -33,30 +33,18 @@ utilization(R) = sum(K * N * P * repeat)
 512-row Macro 在 ResNet-18 和 ViT-B/16 上的加权行利用率分别为 `65.67%` 和
 `71.99%`，明显低于 64-row Macro 的 `98.05%` 和 `99.39%`。
 
-### 3. Tile 能量-面积延迟积 Pareto 图
+### 3. 核心结果图
 
-- PNG：`paper/figures/innovation1/resnet18_vitb_tile_energy_adp_pareto.png`
-- PDF：`paper/figures/innovation1/resnet18_vitb_tile_energy_adp_pareto.pdf`
-- 绘图数据：`paper/tables/innovation1_tile_energy_adp_pareto_points.csv`
+- 推荐主图 PNG：`paper/figures/innovation1/tile_dse_combined_result_normalized.png`
+- 推荐主图 PDF：`paper/figures/innovation1/tile_dse_combined_result_normalized.pdf`
+- 未归一化备选图：`paper/figures/innovation1/tile_dse_combined_result.pdf`
+- 架构级 Pareto 数据：`paper/tables/innovation1_core_result_pareto.csv`
 
-每个 Tile 使用其最低 EDP 映射形成一个架构点：横轴为该映射的能量，纵轴为同一映射的
-`面积 x 延迟`。蓝色圆点表示同构 Tile，橙色方块表示异构 Tile，黑色边框表示
-能量-面积延迟积 Pareto，红色叉号表示 `64+512`。
+该 2x2 图按列对齐 ResNet-18 与 ViT-B/16。上排为 EDP-area Pareto，下排为归一化
+EDAP 排行；每个网络的最佳已评价架构归一化为 1.0，避免把不同网络的绝对计算规模误读
+为架构优劣。归一化图的柱尾只显示归一化 EDAP，绝对值和选择依据见对应数据表。
 
-ResNet-18 使用完整的 48/48 固定面板。ViT-B/16 当前只有 38/48 个完成点，另外 10 个
-小 Macro 密集候选因 600 秒限制被跳过。因此 ViT 子图是当前已完成候选上的前沿，不能
-在论文中表述为完整 48 点 Pareto。
-
-### 3.1 Tile 延迟-能量面积积 Pareto 图
-
-- PNG：`paper/figures/innovation1/resnet18_vitb_tile_latency_energy_area_pareto.png`
-- PDF：`paper/figures/innovation1/resnet18_vitb_tile_latency_energy_area_pareto.pdf`
-- 绘图数据：`paper/tables/innovation1_tile_latency_energy_area_pareto_points.csv`
-
-该图使用相同的最低 EDP 代表映射，横轴为延迟，纵轴为 `能量 x 面积`。蓝色圆点表示
-同构 Tile，橙色方块表示异构 Tile，黑色边框表示延迟-能量面积积 Pareto，红色叉号
-表示 `64+512`。该图与能量-面积延迟积图使用相同的架构点，仅改变两个复合目标的组织
-方式，便于观察不同指标定义对前沿成员的影响。
+未归一化版本保留绝对 EDAP，适合审计单个网络的工作负载成本，不建议用于跨网络视觉比较。
 
 ### 4. 两个工作负载的同构/异构结果表
 
@@ -73,6 +61,23 @@ ResNet-18 使用完整的 48/48 固定面板。ViT-B/16 当前只有 38/48 个�
 
 能量、延迟和 EDP 来自同一条调度，避免把最低能量端点和最低延迟端点拼接为一个不存在
 的工作点。表中的 E-ADP Pareto 标记按照相同最低 EDP 映射计算。
+
+### 5. `64+512` 跨工作负载选择依据
+
+- 图：`paper/figures/innovation1/tile_dse_combined_result_normalized.pdf`
+- EDAP 排行图：`paper/figures/innovation1/tile_dse_edap_ranking.pdf`
+- Pareto 数据：`paper/tables/innovation1_core_result_pareto.csv`
+- 选择数据：`paper/tables/innovation1_core_result_selection.csv`
+- 排行数据：`paper/tables/innovation1_core_result_edap_ranking.csv`
+
+核心结果图显式比较 `64+512`、`2x256` 和单个 `512` Macro。选择表记录三种设计在
+ResNet-18 与 ViT-B/16 上的 EDP、EDAP、相对最低 EDP 同构设计的改善，以及在两个网络
+共同完成候选集合上的 EDAP regret。跨工作负载选择采用最小化最坏归一化 EDAP regret，
+而不是根据单个网络的最低 EDP 事后选择设计。
+
+EDAP 排行图分别显示两个工作负载的 Top 10，并额外补入未进入 Top 10 的 `2x256` 或
+单个 `512` 比较基线。排行仍使用每个架构的最低 EDP 映射计算 EDAP，与 Pareto 图口径
+一致。该图用于直观呈现单网络名次；最终选择仍依据跨工作负载最坏 EDAP regret。
 
 ## 复现实验
 

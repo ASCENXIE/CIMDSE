@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a 48-point Bayesian Tile DSE for pipelined ViT-B/16."""
+"""Run a 48-point Bayesian Tile DSE for a pipelined ViT workload."""
 
 from __future__ import annotations
 
@@ -34,18 +34,23 @@ from tile_DSE.sram_tile_dse import enumerate_tile_designs
 from tile_DSE.vit.vision_transformer_workload import (
     vit_b16_macs,
     vit_b16_operator_groups,
+    vit_l16_macs,
+    vit_l16_operator_groups,
 )
 from tile_DSE.vit.vit_tile_dse import (
     ENERGY_MODEL_VERSION,
     PIPELINE_MODEL_VERSION,
-    WORKLOAD_MODEL_VERSION,
     evaluate_vit_design,
+    workload_version,
 )
 
 
 ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_RESULTS_DIR = (
     ROOT / "experiments" / "results" / "tile_DSE" / "vision_transformer_v5"
+)
+DEFAULT_VIT_L_RESULTS_DIR = (
+    ROOT / "experiments" / "results" / "tile_DSE" / "vision_transformer_l16_v2"
 )
 DEFAULT_FIXED_PANEL = (
     ROOT
@@ -84,7 +89,9 @@ def _design_timeout(timeout_s: float):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_RESULTS_DIR)
+    parser.add_argument("--workload-model", choices=("vit_b16", "vit_l16"), default="vit_b16")
+    parser.add_argument("--output-dir", type=Path)
+    parser.add_argument("--result-prefix")
     parser.add_argument("--fixed-designs-csv", type=Path, default=DEFAULT_FIXED_PANEL)
     parser.add_argument(
         "--select-new-panel",
@@ -114,6 +121,17 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=0,
         help="0 exhausts all bank partitions; a positive value enables an explicit heuristic cap.",
+    )
+    parser.add_argument(
+        "--evaluate-dense-small-macro-designs",
+        action="store_true",
+        help="Evaluate ViT designs that match the empirical small-Macro complexity skip rule.",
+    )
+    parser.add_argument(
+        "--completed-design-target",
+        type=int,
+        default=0,
+        help="stop after this many completed designs; 0 evaluates the full panel",
     )
     parser.add_argument("--resume", action="store_true")
     return parser.parse_args()
@@ -169,9 +187,13 @@ def _checkpoint(
             "local_pareto_epsilon": args.local_pareto_epsilon,
             "local_state_cap": args.local_state_cap,
             "aggregate_state_cap": args.aggregate_state_cap,
+            "dense_small_macro_policy": (
+                "evaluate" if args.evaluate_dense_small_macro_designs else "skip"
+            ),
+            "completed_design_target": args.completed_design_target,
             "energy_model_version": ENERGY_MODEL_VERSION,
             "pipeline_model_version": PIPELINE_MODEL_VERSION,
-            "workload_model_version": WORKLOAD_MODEL_VERSION,
+            "workload_model_version": workload_version(args.workload_model),
             "design_panel_sha256": design_panel_sha256,
         }
         for order, index in enumerate(evaluated, start=1)
@@ -181,6 +203,10 @@ def _checkpoint(
         row for row in sample_rows if row["evaluation_status"] == "timeout_skipped"
     ]
     _write_csv(results_dir / f"{RESULT_PREFIX}_timeouts.csv", timeout_rows)
+    skipped_rows = [
+        row for row in sample_rows if row["evaluation_status"] == "complexity_skipped"
+    ]
+    _write_csv(results_dir / f"{RESULT_PREFIX}_complexity_skips.csv", skipped_rows)
     _write_csv(results_dir / f"{RESULT_PREFIX}_layers.csv", layer_rows)
     _write_csv(results_dir / f"{RESULT_PREFIX}_aggregate.csv", aggregate_rows)
     prediction_path = results_dir / f"{RESULT_PREFIX}_bayesian_predictions.csv"
@@ -218,11 +244,38 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("partition-budget cannot be negative")
     if args.design_timeout_s < 0:
         raise ValueError("design-timeout-s cannot be negative")
+    if args.completed_design_target < 0:
+        raise ValueError("completed-design-target cannot be negative")
+
+
+def dense_small_macro_skip_reason(design) -> str | None:
+    """Return the empirical ViT complexity rule matched by a Tile design."""
+
+    counts = dict(design.counts)
+    m32_count = counts.get("m32x8", 0)
+    m256_count = counts.get("m256x8", 0)
+    m512_count = counts.get("m512x8", 0)
+    if m32_count >= 9:
+        return "m32_count>=9"
+    if (
+        len(design.counts) > 1
+        and design.macro_count >= 12
+        and m512_count == 0
+        and m256_count <= 1
+    ):
+        return "heterogeneous_macro_count>=12_without_m512_or_multiple_m256"
+    return None
 
 
 def main() -> None:
+    global RESULT_PREFIX
     args = parse_args()
     _validate_args(args)
+    RESULT_PREFIX = args.result_prefix or (
+        "vit_l16_pipeline_tile_dse"
+        if args.workload_model == "vit_l16"
+        else "vit_b16_pipeline_tile_dse"
+    )
     library = load_sram_macro_library("system_digital_sram_4x4")
     reference, candidates = enumerate_tile_designs(
         library,
@@ -246,7 +299,12 @@ def main() -> None:
     validation = min(args.validation_designs, max(budget - args.initial_designs, 0))
     acquisition_limit = budget - validation
     x = features(designs, reference)
-    results_dir = args.output_dir.resolve()
+    default_results_dir = (
+        DEFAULT_VIT_L_RESULTS_DIR
+        if args.workload_model == "vit_l16"
+        else DEFAULT_RESULTS_DIR
+    )
+    results_dir = (args.output_dir or default_results_dir).resolve()
     results_dir.mkdir(parents=True, exist_ok=True)
 
     evaluated: list[int] = []
@@ -262,7 +320,7 @@ def main() -> None:
         compatible = metadata and all(
             row.get("energy_model_version") == ENERGY_MODEL_VERSION
             and row.get("pipeline_model_version") == PIPELINE_MODEL_VERSION
-            and row.get("workload_model_version") == WORKLOAD_MODEL_VERSION
+            and row.get("workload_model_version") == workload_version(args.workload_model)
             and int(row.get("batch_size", 0)) == args.batch_size
             and int(row.get("partition_budget", -1)) == args.partition_budget
             and float(row.get("latency_cap_ratio", "nan"))
@@ -272,6 +330,10 @@ def main() -> None:
             and int(row.get("local_state_cap", 0)) == args.local_state_cap
             and int(row.get("aggregate_state_cap", 0))
             == args.aggregate_state_cap
+            and row.get("dense_small_macro_policy", "evaluate")
+            == ("evaluate" if args.evaluate_dense_small_macro_designs else "skip")
+            and int(row.get("completed_design_target", 0))
+            == args.completed_design_target
             and float(row.get("design_timeout_s", args.design_timeout_s))
             == args.design_timeout_s
             and row.get("design_panel_sha256", "") == design_panel_hash
@@ -318,7 +380,13 @@ def main() -> None:
         if fixed_panel_path
         else farthest_seeds(designs, x, min(args.initial_designs, budget))
     )
+    completed_design_target = args.completed_design_target or budget
     while len(evaluated) < budget:
+        if (
+            sum(status == "completed" for status in evaluation_statuses.values())
+            >= completed_design_target
+        ):
+            break
         pending = [index for index in seeds if index not in evaluated]
         stage = "fixed_panel" if fixed_panel_path else "initial"
         if not pending:
@@ -341,41 +409,62 @@ def main() -> None:
         if not fixed_panel_path:
             pending = pending[: min(args.acquisition_batch_size, budget - len(evaluated))]
         for index in pending:
+            if (
+                sum(status == "completed" for status in evaluation_statuses.values())
+                >= completed_design_target
+            ):
+                break
             design = designs[index]
             selection_stages[index] = stage
             print(f"Evaluating {len(evaluated) + 1}/{budget}: {design.name}", flush=True)
             started_at = perf_counter()
-            try:
-                with _design_timeout(args.design_timeout_s):
-                    layer_rows, aggregate_rows = evaluate_vit_design(
-                        design,
-                        library,
-                        reference,
-                        batch_size=args.batch_size,
-                        latency_cap_ratio=args.latency_cap_ratio,
-                        local_pareto_epsilon=args.local_pareto_epsilon,
-                        local_state_cap=args.local_state_cap,
-                        aggregate_state_cap=args.aggregate_state_cap,
-                        partition_budget=args.partition_budget,
-                        partial_path=results_dir / ".partial" / f"{design.name}.pkl",
-                    )
-            except DesignEvaluationTimeout as error:
-                evaluation_statuses[index] = "timeout_skipped"
-                evaluation_errors[index] = str(error)
-                evaluation_elapsed_s[index] = perf_counter() - started_at
+            skip_reason = (
+                None
+                if args.evaluate_dense_small_macro_designs
+                else dense_small_macro_skip_reason(design)
+            )
+            if skip_reason:
+                evaluation_statuses[index] = "complexity_skipped"
+                evaluation_errors[index] = skip_reason
+                evaluation_elapsed_s[index] = 0.0
                 summaries[index] = (inf, inf, inf)
                 print(
-                    f"Timeout skipped {design.name} after "
-                    f"{evaluation_elapsed_s[index]:.1f}s",
+                    f"Complexity skipped {design.name}: {skip_reason}",
                     flush=True,
                 )
             else:
-                all_layer_rows.extend(layer_rows)
-                all_aggregate_rows.extend(aggregate_rows)
-                summaries[index] = summarize(aggregate_rows)
-                evaluation_statuses[index] = "completed"
-                evaluation_errors[index] = ""
-                evaluation_elapsed_s[index] = perf_counter() - started_at
+                try:
+                    with _design_timeout(args.design_timeout_s):
+                        layer_rows, aggregate_rows = evaluate_vit_design(
+                            design,
+                            library,
+                            reference,
+                            batch_size=args.batch_size,
+                            latency_cap_ratio=args.latency_cap_ratio,
+                            local_pareto_epsilon=args.local_pareto_epsilon,
+                            local_state_cap=args.local_state_cap,
+                            aggregate_state_cap=args.aggregate_state_cap,
+                            partition_budget=args.partition_budget,
+                            workload_model=args.workload_model,
+                            partial_path=results_dir / ".partial" / f"{design.name}.pkl",
+                        )
+                except DesignEvaluationTimeout as error:
+                    evaluation_statuses[index] = "timeout_skipped"
+                    evaluation_errors[index] = str(error)
+                    evaluation_elapsed_s[index] = perf_counter() - started_at
+                    summaries[index] = (inf, inf, inf)
+                    print(
+                        f"Timeout skipped {design.name} after "
+                        f"{evaluation_elapsed_s[index]:.1f}s",
+                        flush=True,
+                    )
+                else:
+                    all_layer_rows.extend(layer_rows)
+                    all_aggregate_rows.extend(aggregate_rows)
+                    summaries[index] = summarize(aggregate_rows)
+                    evaluation_statuses[index] = "completed"
+                    evaluation_errors[index] = ""
+                    evaluation_elapsed_s[index] = perf_counter() - started_at
             evaluated.append(index)
             _checkpoint(
                 results_dir,
@@ -400,17 +489,29 @@ def main() -> None:
         results_dir / f"{RESULT_PREFIX}_aggregate_pareto_eta.csv",
         energy_latency_area,
     )
-    print(f"ViT-B/16 operator groups: {len(vit_b16_operator_groups(args.batch_size))}")
-    print(f"ViT-B/16 MACs: {vit_b16_macs(args.batch_size)}")
+    if args.workload_model == "vit_l16":
+        workload_label = "ViT-L/16"
+        groups = vit_l16_operator_groups(args.batch_size)
+        macs = vit_l16_macs(args.batch_size)
+    else:
+        workload_label = "ViT-B/16"
+        groups = vit_b16_operator_groups(args.batch_size)
+        macs = vit_b16_macs(args.batch_size)
+    print(f"{workload_label} operator groups: {len(groups)}")
+    print(f"{workload_label} MACs: {macs}")
     completed_count = sum(
         status == "completed" for status in evaluation_statuses.values()
     )
     timeout_count = sum(
         status == "timeout_skipped" for status in evaluation_statuses.values()
     )
+    complexity_skip_count = sum(
+        status == "complexity_skipped" for status in evaluation_statuses.values()
+    )
     print(f"Resolved designs: {len(evaluated)}/{len(designs)}")
     print(f"Completed designs: {completed_count}")
     print(f"Timeout-skipped designs: {timeout_count}")
+    print(f"Complexity-skipped designs: {complexity_skip_count}")
     print(f"Results: {results_dir}")
 
 

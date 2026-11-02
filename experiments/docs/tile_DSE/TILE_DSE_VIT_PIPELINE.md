@@ -16,7 +16,9 @@ not modify the existing CNN Tile DSE files:
 The CNN entry points, workload parsing, sequential network aggregation, result
 directories, model-version strings, and checkpoints retain their previous
 behavior. ViT results use the independent directory
-`experiments/results/tile_DSE/vision_transformer_v5/`.
+`experiments/results/tile_DSE/vision_transformer_l16_v2/` for the current
+ViT-L/16 study. The older ViT-B/16 result is retained only for proxy-analysis
+reproducibility.
 
 The upstream AccelForge `vision_transformer.yaml` is also left unchanged. The
 ViT DSE uses an explicit compact workload definition so the corrected attention
@@ -35,6 +37,21 @@ The first workload is ViT-B/16 with batch size 1:
 | Heads | 12 |
 | Head dimension | 64 |
 | Class count | 1000 |
+
+The cross-workload comparison also evaluates ViT-L/16 under the same Tile
+search panel and constraints:
+
+| Parameter | ViT-L/16 value |
+|---|---:|
+| Transformer blocks | 24 |
+| Tokens | 192 |
+| Hidden dimension | 1024 |
+| MLP dimension | 4096 |
+| Heads | 16 |
+| Head dimension | 64 |
+| Class count | 1000 |
+
+The ViT-L/16 GEMM-only workload contains `59,946,016,768` MACs.
 
 The GEMM-only workload has seven repeated operator groups and
 `17,100,945,408` MACs. Softmax, LayerNorm, GELU, residual addition, and pipeline
@@ -171,6 +188,13 @@ Each physical Tile has a 600-second wall-clock evaluation limit. A timeout is
 recorded as `timeout_skipped` in the sample and timeout CSV files, and the runner
 continues with the next fixed-panel Tile. Timeout-skipped Tiles do not enter the
 aggregate or Pareto fronts.
+
+Later ViT runs pre-skip the empirically explosive dense-small-Macro region:
+`m32x8_count >= 9`, or a heterogeneous Tile with at least twelve total Macros,
+no `m512x8`, and at most one `m256x8`. These points remain in the frozen panel
+with status `complexity_skipped`; they are not counted as evaluated designs or
+silently removed. Pass `--evaluate-dense-small-macro-designs` to disable the
+rule and reproduce the earlier exhaustive-per-design behavior.
 
 The ViT aggregate CSV reports at least:
 

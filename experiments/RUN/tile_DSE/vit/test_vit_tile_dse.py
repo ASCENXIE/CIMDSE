@@ -17,6 +17,8 @@ from tile_DSE.sram_tile_dse import enumerate_tile_designs
 from tile_DSE.vit.vision_transformer_workload import (
     vit_b16_macs,
     vit_b16_operator_groups,
+    vit_l16_macs,
+    vit_l16_operator_groups,
 )
 from tile_DSE.vit.vit_tile_dse import (
     _aggregate_groups,
@@ -25,10 +27,31 @@ from tile_DSE.vit.vit_tile_dse import (
 from tile_DSE.vit.run_vit_tile_bayesian_dse import (
     DesignEvaluationTimeout,
     _design_timeout,
+    dense_small_macro_skip_reason,
 )
 
 
 class VitTileDseTest(unittest.TestCase):
+    def test_dense_small_macro_skip_rule_preserves_completed_boundaries(self) -> None:
+        library = load_sram_macro_library("system_digital_sram_4x4")
+        _, candidates = enumerate_tile_designs(library, 0.4608, 0.20)
+        designs = {design.name: design for design in candidates}
+
+        self.assertIsNotNone(dense_small_macro_skip_reason(designs["15xm32x8"]))
+        self.assertIsNotNone(
+            dense_small_macro_skip_reason(designs["3xm32x8+9xm64x8"])
+        )
+        self.assertIsNone(
+            dense_small_macro_skip_reason(designs["4xm64x8+3xm128x8"])
+        )
+        self.assertIsNone(dense_small_macro_skip_reason(designs["9xm64x8"]))
+        self.assertIsNone(
+            dense_small_macro_skip_reason(designs["5xm32x8+2xm256x8"])
+        )
+        self.assertIsNone(
+            dense_small_macro_skip_reason(designs["1xm64x8+1xm512x8"])
+        )
+
     def test_design_wall_clock_timeout_interrupts_evaluation(self) -> None:
         started_at = time.perf_counter()
 
@@ -63,6 +86,29 @@ class VitTileDseTest(unittest.TestCase):
         )
         self.assertEqual(groups["attention_qk"].macs, 12 * 192 * 192 * 64 * 12)
         self.assertEqual(vit_b16_macs(), 17_100_945_408)
+
+    def test_vit_l16_uses_192_tokens_and_1024_hidden_dimension(self) -> None:
+        groups = {group.name: group for group in vit_l16_operator_groups()}
+
+        self.assertEqual(groups["patch_embedding"].shape.output_positions, 192)
+        self.assertEqual(
+            (
+                groups["q_k_v_o_projection"].shape.reduction_length,
+                groups["q_k_v_o_projection"].shape.output_channels,
+                groups["q_k_v_o_projection"].repeat,
+            ),
+            (1024, 1024, 24 * 4),
+        )
+        self.assertEqual(
+            (
+                groups["attention_qk"].shape.reduction_length,
+                groups["attention_qk"].shape.output_channels,
+                groups["attention_qk"].shape.output_positions,
+            ),
+            (64, 192, 16 * 192),
+        )
+        self.assertEqual(groups["ffn_up_projection"].shape.output_channels, 4096)
+        self.assertEqual(vit_l16_macs(), 59_946_016_768)
 
     def test_64_512_has_both_role_assignments_and_legal_lanes(self) -> None:
         library = load_sram_macro_library("system_digital_sram_4x4")

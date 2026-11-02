@@ -546,3 +546,150 @@ Core搜索采用分层贝叶斯剪枝：外层从25个代表Tile类型中选择�
 Tile精确枚举 `1..8 Tile/Core`。默认评估12个Tile类型，因此最多精确评估96个Core计算
 资源配置，而不是穷举200个组合。BO不会在Tile数量维度预测或剪枝；所有已评估Core的
 全网Pareto状态都会继续传递到System层，避免逐层只保留单一最优点。
+
+## 11. Innovation 1 当前 Tile DSE 搜索规范
+
+本节集中记录创新点一当前正式使用的 Tile 级 Macro 组合搜索条件、约束、目标和方法。
+它只适用于当前的 Tile-only 研究阶段；Core/System 的层级搜索属于后续扩展。若本节与
+前文较早的通用 Core/System 设想冲突，以本节和 `experiments/docs/tile_DSE/` 下的冻结规范
+为当前 Innovation 1 实验口径。
+
+### 11.1 搜索条件
+
+| 项目 | 当前设置 |
+|---|---|
+| 搜索对象 | 单个数字 SRAM-CIM Tile |
+| Macro 类型 | `32x8`、`64x8`、`128x8`、`256x8`、`512x8` |
+| 输入/权重精度 | 8 bit / 8 bit |
+| 工作频率 | 400 MHz |
+| Macro bit-cycle | 2.5 ns |
+| 参考峰值算力 | 0.4608 TOPS |
+| 峰值算力窗口 | `0.4608 * (1 +- 20%)`，即 0.36864--0.55296 TOPS |
+| CNN 工作负载 | ResNet-18、ResNet-50 等，batch size = 1 |
+| Transformer 工作负载 | ViT-B/16 或 ViT-L/16 的 GEMM/CIM 部分 |
+| Tile 输出接口 | 最多 4 条物理 lane，固定 32 个输出/psum 寄存器 |
+| 特征总线 | 512 bit/cycle |
+| 权重总线 | 64 bit/cycle |
+| Macro 静态功耗比例 | 5% |
+| 总线动态能量 | 当前为 0 J/bit，仅统计总线流量和周期 |
+| 必测研究锚点 | `1x64x8 + 1x512x8` |
+| 等算力同构基线 | `9x64x8` |
+
+Macro 的峰值算力、VMM 延迟、满行能量、面积和权重写入能量来自编译器表征及
+SRAM/寄存器组件模型。DSE 不重新搜索 Macro 内部 bitcell、工艺或精度。
+
+### 11.2 搜索约束
+
+#### Macro 组合约束
+
+- 每种 Macro 的数量是非负整数，至少包含一种 Macro。
+- 一个 Tile 最多包含两种 Macro 类型，因此既允许同构组合，也允许双类型异构组合。
+- 组合峰值算力必须落入 0.36864--0.55296 TOPS。
+- 面积和容量不设硬上限，只作为后续评价和诊断字段。
+- `64+512` 必须实际评价，但不能在候选生成、调度剪枝或目标函数中获得优待。
+
+在上述条件下，理论候选池为 138 个：14 个同构候选和 124 个双类型异构候选。
+
+#### Tile 映射约束
+
+- 不同 lane 沿输出维度 `N` 并行；同一 lane 内的 Macro 沿归约维度 `K` 协同。
+- 同一 Macro 同一时刻只能执行一个 VMM，并且只能属于一条 lane。
+- Macro 可以按实际 `K` 维只开启部分阵列行。
+- 闲置 Macro 不产生动态计算能量，但仍支付静态功耗。
+- 同 wave 内的跨 Macro psum 归约计入动态能量。
+- 跨 wave psum 保存在 Tile 输出寄存器中。
+
+#### 总线与时序约束
+
+- 共享入口每周期只能处于 `FEATURE`、`WEIGHT` 或 `IDLE` 模式。
+- `FEATURE` 周期只能传特征，带宽为 512 bit/cycle。
+- `WEIGHT` 周期只能传权重，带宽为 64 bit/cycle，每周期最多传输一行 64-bit 权重。
+- 特征与权重不能在同一周期同时传输。
+- 同一 bank 内禁止权重装载与 Macro VMM 重叠。
+- 总线传输可以与计算重叠，但必须满足数据依赖。
+- 一个 N-block 的 K 维权重装载一次，并在输出位置间复用。
+
+#### 有界状态搜索约束
+
+为避免映射状态爆炸，层内和跨层采用有界 Pareto 动态规划：
+
+| 参数 | 设置 |
+|---|---:|
+| 层内 latency cap ratio | 4.0 |
+| 层内 Pareto epsilon | 0.001 |
+| 层内 state cap | 4096 |
+| 跨层 aggregate epsilon | 0.001 |
+| 跨层 aggregate state cap | 512 |
+
+因此正式结果应标记为 bounded-DP Pareto，而不是无界的精确调度枚举。
+
+### 11.3 搜索目标
+
+网络级主 Pareto 同时最小化：
+
+```text
+minimize E_network
+minimize T_network
+```
+
+其中 `E_network` 是完整网络推理能量，`T_network` 是完整网络推理延迟。
+
+同时在实际评价结果上生成三目标 E-T-A Pareto：
+
+```text
+minimize E_network
+minimize T_network
+minimize A_tile
+```
+
+Tile 面积口径为：
+
+```text
+A_tile = sum(A_macro)
+       + sum(2 * rows * A_8bit_input_register)
+       + 32 * A_25bit_output_register
+```
+
+面积不进入层内调度 DP，因为同一 Tile 的面积不随层调度变化；E-T-A Pareto 在网络级
+结果上后处理生成。
+
+EDP、EDAP、TOPS/W、TOPS/mm2、Macro 数量、容量、利用率和总线流量是摘要或诊断指标。
+其中 EDP 主要用于 Bayesian 采集，不作为最终独立 Pareto 维度。
+
+跨网络筛选使用 Pareto regret，而不是只看某个网络的最低 EDP。冻结判据如下：
+
+| 判定项 | 阈值 |
+|---|---:|
+| 单网络近优 regret | <= 5% |
+| 跨网络通过率 | >= 80% |
+| 跨网络中位 regret | <= 3% |
+| 最坏网络 regret | <= 10% |
+| 严格命中 E-T 或 E-T-A Pareto 的网络比例 | >= 50% |
+
+### 11.4 搜索方法
+
+搜索由“候选枚举、Bayesian 选点、内层物理调度、跨网络判定”四步组成：
+
+1. **候选组合枚举**：递归枚举五种 Macro 的整数数量，累加峰值算力；超过上限时
+   提前剪枝，最终保留至少一种 Macro、最多两种 Macro 类型且位于算力窗口内的组合。
+
+2. **Bayesian 外层选点**：138 个理论候选不全部进行昂贵的网络级评价，正式只实际评价
+   48 个候选：初始覆盖 16 个、Bayesian 采集 24 个、预测前沿验证 8 个，每批最多 4 个。
+   初始集合包含全部 14 个同构候选、`9x64`、`64+512` 以及用于扩大结构覆盖的异构候选。
+
+3. **候选特征和 GP 预测**：每个候选使用五种 Macro 数量、相对容量和 Macro 总数作为
+   特征。Gaussian Process 分别预测 `log(energy)`、`log(latency)` 和 `log(EDP)`，采集
+   函数同时考虑预测值、不确定度和候选多样性。未实际评价候选的预测值不进入最终 Pareto、
+   regret 或跨网络合格名单。
+
+4. **内层物理约束调度**：对选中的组合搜索 lane 数、Macro-to-lane 分组、N-block 分配、
+   K-wave 划分、部分行激活以及权重/特征时序，并计算 Macro 动态/静态能量、寄存器能量、
+   psum 归约能量、权重写入能量、总线周期和层延迟，保留层内 E-T Pareto 状态。
+
+5. **网络级聚合与跨负载判定**：CNN 按层顺序聚合；Transformer 额外搜索投影 bank 与
+   注意力 bank 的 Macro 分工和 lane 分配，稳态延迟取投影、注意力和共享总线路径的最大值。
+   最后生成 E-T/E-T-A Pareto，计算单网络和跨网络 regret，判断 `64+512` 是否属于实测
+   候选中的稳健近优组合。
+
+当前结论的范围应限定为“Bayesian 实际评价的 48 个候选中的稳健近优结构”，不能外推为
+138 个理论候选中的全局最优。

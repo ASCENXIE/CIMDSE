@@ -2,9 +2,8 @@
 
 This directory contains the SRAM-CIM Tile DSE code, configuration,
 documentation, fixed inputs, and generated results. The active result sets are
-the ResNet-18 and ViT-B/16 Tile DSEs using Macro energy model v5. ResNet-18
-completed all 48 fixed-panel Tiles; ViT-B/16 retains 10 explicitly recorded
-timeout-skipped Tiles.
+ResNet-18 v6 and ViT-L/16 v2. ResNet-18 completed all 48 fixed-panel Tiles;
+ViT-L/16 completed 36 of the 71 ordered candidates and recorded 35 timeouts.
 
 ## Directory Map
 
@@ -21,7 +20,8 @@ experiments/
 └── results/
     └── tile_DSE/
         ├── resnet18_v6/            current complete ResNet-18 results
-        └── vision_transformer_v5/  current ViT results (38/48 completed)
+        ├── vision_transformer_l16_v2/ current ViT-L/16 results (36/71 completed)
+        └── vision_transformer_v5/  legacy ViT-B/16 proxy data retained for reproducibility
 ```
 
 Generated Python caches, completed-run checkpoints, pre-v5 Tile results, and
@@ -46,9 +46,10 @@ measured `m512x8` row-slope correction to all Macro sizes. See
 `docs/tile_DSE/TILE_DSE_SEARCH_CONDITIONS.md` for the exact coefficients and
 assumptions.
 
-## Active ViT DSE
+## Active ViT-L DSE
 
-The current ViT-B/16 workload uses 192 tokens.
+The current ViT-L/16 workload uses 192 tokens, hidden dimension 1024, MLP
+dimension 4096, 16 heads, and 24 Transformer blocks.
 
 The formal search evaluates the frozen 48-design panel, caps physical bank
 partitions at 8 per design, and skips a design after 600 seconds:
@@ -56,9 +57,12 @@ partitions at 8 per design, and skips a design after 600 seconds:
 ```bash
 third_party/accelforge/.venv/bin/python -u \
   experiments/RUN/tile_DSE/vit/run_vit_tile_bayesian_dse.py \
+  --workload-model vit_l16 \
   --partition-budget 8 \
   --design-timeout-s 600 \
-  --output-dir experiments/results/tile_DSE/vision_transformer_v5
+  --fixed-designs-csv experiments/docs/tile_DSE/frozen_panels/vit_l16_bayesian_panel_96_filtered.csv \
+  --completed-design-target 48 \
+  --output-dir experiments/results/tile_DSE/vision_transformer_l16_v2
 ```
 
 Regenerate all ViT figures without rerunning the search:
@@ -66,12 +70,13 @@ Regenerate all ViT figures without rerunning the search:
 ```bash
 third_party/accelforge/.venv/bin/python \
   experiments/RUN/tile_DSE/vit/generate_vit_tile_dse_visualizations.py \
-  --result-dir experiments/results/tile_DSE/vision_transformer_v5
+  --result-dir experiments/results/tile_DSE/vision_transformer_l16_v2 \
+  --prefix vit_l16_pipeline_tile_dse \
+  --workload-label ViT-L/16
 ```
 
-The fixed input panel is stored at
-`docs/tile_DSE/frozen_panels/resnet18_tile_panel_48.csv`; it is independent of
-deleted pre-v5 CNN result directories.
+The ordered input panel is stored at
+`docs/tile_DSE/frozen_panels/vit_l16_bayesian_panel_96_filtered.csv`.
 
 ## Verification
 

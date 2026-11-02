@@ -424,7 +424,7 @@ def draw_edp_area(rows: list[dict[str, str | float]]) -> None:
         "homogeneous": ("o", "#2e86ab"),
         "heterogeneous": ("s", "#c75b39"),
     }
-    figure, axis = plt.subplots(figsize=(9.2, 6.2))
+    figure, axis = plt.subplots(figsize=(9.2, 6.5))
     for tile_class, (marker, color) in class_styles.items():
         for on_front, size, alpha, edgecolor, linewidth, zorder in (
             (False, 48, 0.48, "none", 0.0, 1),
@@ -447,28 +447,6 @@ def draw_edp_area(rows: list[dict[str, str | float]]) -> None:
                 linewidths=linewidth,
                 zorder=zorder,
             )
-    label_offsets = {
-        "15xm32x8": (8, 9),
-        "4xm128x8": (8, 20),
-        "2xm256x8": (-62, -28),
-        "1xm32x8+2xm256x8": (8, 12),
-        "1xm64x8+2xm256x8": (-100, 20),
-        "2xm32x8+1xm512x8": (-108, -2),
-        "1xm64x8+1xm512x8": (8, -14),
-        "1xm128x8+1xm512x8": (8, 12),
-        "5xm32x8+1xm512x8": (-104, -2),
-    }
-    for row in front:
-        design = str(row["design"])
-        axis.annotate(
-            format_design(row).replace("\n", " "),
-            (float(row["tile_area_mm2"]), float(row["EDP_mJ_ms"])),
-            xytext=label_offsets.get(design, (8, 8)),
-            textcoords="offset points",
-            fontsize=8,
-            arrowprops={"arrowstyle": "-", "color": "#6b6b6b", "lw": 0.6},
-            zorder=4,
-        )
     handles = [
         Line2D([], [], marker="o", linestyle="", color="#2e86ab", label="Homogeneous"),
         Line2D([], [], marker="s", linestyle="", color="#c75b39", label="Heterogeneous"),
@@ -545,17 +523,14 @@ def draw_edap_ranking(rows: list[dict[str, str | float]]) -> None:
         else "#c75b39"
         for row in ordered
     ]
-    labels = [
-        f"{int(row['rank'])}. {format_design(row).replace(chr(10), ' ')}"
-        for row in ordered
-    ]
+    labels = [format_design(row).replace(chr(10), " ") for row in ordered]
     values = [float(row["EDAP_mJ_ms_mm2"]) for row in ordered]
     figure, axis = plt.subplots(figsize=(11.5, 6.5))
     axis.barh(range(len(ordered)), values, color=colors, alpha=0.88, height=0.72)
     axis.set_yticks(range(len(ordered)), labels)
     axis.invert_yaxis()
     axis.set_xlabel(r"Energy $\times$ Delay $\times$ Area (mJ$\cdot$ms$\cdot$mm$^2$)")
-    axis.set_ylabel("Tile architecture rank (best at top)")
+    axis.set_ylabel("Tile architecture (best at top)")
     axis.set_title(
         f"{WORKLOAD_LABEL} Tile Energy-Delay-Area Top 10\n"
         "48/138 evaluated - fixed Bayesian panel"
