@@ -1,2 +1,5 @@
 *
 !.gitignore
+!/README.md
+!/tile_DSE/
+!/tile_DSE/README.md

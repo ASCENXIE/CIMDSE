@@ -23,9 +23,12 @@ arch:
     tile_array_y: 1
     n_tiles: tile_array_x * tile_array_y
     n_macros: n_tiles * macros_per_tile
-    global_buffer_size_bits: 384 * 1024 * 8
-    global_buffer_banks: 16
+    global_buffer_size_bits: 3145728 # 384 KiB = 12 x 32 KiB
+    global_buffer_banks: 12
     global_buffer_width_bits: 512
+    global_buffer_rw_ports: 1
+    global_buffer_read_energy_j: 22e-12
+    global_buffer_write_energy_j: 33.6e-12
     # The mapper uses this aggregate capacity to test tile feasibility. Physically it
     # is implemented as two line FIFOs, each holding half of the rolling input state.
     tile_input_buffer_size_bits: {{TILE_INPUT_BUFFER_KIB | default(12)}} * 1024 * 8
@@ -52,6 +55,9 @@ arch:
     macro_output_register_banks: 1
     macro_output_register_entries: macro_logical_outputs
     macro_output_register_entry_bits: 25
+    # v5 also installs one 8x32-bit psum buffer per physical output lane.
+    # Its area/access costs are accounted in v5.hardware/evaluator separately
+    # from these local 25-bit result registers; it is not a second output bank.
     macro_output_register_size_bits: macro_output_register_entries * macro_output_register_entry_bits
 
     # Tile integration limits. A composition may contain any number of Macro
@@ -67,10 +73,19 @@ arch:
     # Feature ingress remains 512 bit/cycle. Weight mode is serialized to
     # 64 bit/cycle for fair Macro-composition comparison.
     tile_weight_bus_width_bits: 64
-    tile_bus_energy_per_bit: 0.0
+    tile_bus_register_stages: 4
+    tile_bus_register_width_bits: 512
+    tile_bus_energy_per_bit: 0.024368618594836508e-12
+    # Cross-K-wave psums reside in the shared GlobalBuffer rather than a separate
+    # Tile SRAM. The Tile-side psum path transfers 256 bit/cycle; two such transfers
+    # are packed into one 512-bit GlobalBuffer access. Cross-wave values stay 32 bit;
+    # only the final output is quantized to 8 bits.
+    tile_psum_buffer_width_bits: 256
+    tile_psum_buffer_value_bits: 32
     # Tile timing contract. Only per-Macro ping-pong input registers are present;
     # there is no Tile SRAM large enough to retain a complete layer input. Timing
-    # is accumulated per N-block/K-wave as W + max(F, C), without fill/drain.
+    # is accumulated per N-block/K-wave as weight-load plus the maximum of compute,
+    # shared Tile-bus traffic, and post-weight GlobalBuffer traffic, without fill/drain.
     tile_retain_features_across_nblocks: False
     tile_allow_intra_bank_weight_compute_overlap: False
     vit_allow_cross_bank_weight_compute_overlap: True
@@ -99,18 +114,19 @@ arch:
 
     # Macro characterization.
     characterized_energy_efficiency_tops_per_w: lookup_cim_macro_efficiency(macro_reduction_inputs, macro_logical_outputs, supported_weight_bits, supported_input_bits, 'energy_efficiency')
+    characterized_area_efficiency_tops_per_mm2: lookup_cim_macro_efficiency(macro_reduction_inputs, macro_logical_outputs, supported_weight_bits, supported_input_bits, 'area_efficiency')
     # The characterized TOPS/W includes active-state static power. Tile DSE splits
     # that energy into 95% dynamic and 5% static. Macro-specific partial-row dynamic
     # coefficients are stored with each entry in macro_types below.
     macro_static_power_fraction: 0.05
-    # 400 MHz operating point shared by Macro compute and the default on-chip links.
-    macro_cycle_period: 2.5e-9
+    # 250 MHz operating point shared by Macro compute and the default on-chip links.
+    macro_cycle_period: 4e-9
     cycle_period: macro_cycle_period
     read_pulse_width: macro_cycle_period
-    macro_area: 320252.5e-12
     macro_ops_per_full_vmm: 2 * macro_reduction_inputs * macro_logical_outputs
     macro_bit_cycles_per_full_vmm: ceil(supported_input_bits / input_bits_per_cycle)
     macro_peak_tops: macro_ops_per_full_vmm / macro_bit_cycles_per_full_vmm / macro_cycle_period / 1e12
+    macro_area: macro_peak_tops / characterized_area_efficiency_tops_per_mm2 * 1e-6
     macro_energy_per_full_vmm: macro_ops_per_full_vmm / characterized_energy_efficiency_tops_per_w / 1e12
     macro_energy_per_bit_cycle: macro_energy_per_full_vmm / macro_bit_cycles_per_full_vmm
 
@@ -140,8 +156,10 @@ arch:
     - {name: read, energy: dram_energy_per_bit, throughput: dram_bandwidth_bits_per_s}
     - {name: write, energy: dram_energy_per_bit, throughput: dram_bandwidth_bits_per_s}
 
-  # Shared 384 KiB on-chip SRAM. SmartBufferSRAM estimates access cost and area; sixteen
-  # banks expose parallel accesses to the macro array.
+  # Shared 384 KiB on-chip SRAM: 12 banks x 32 KiB/bank, one 512-bit 1RW port.
+  # Configured energies specify each 512-bit access; SmartBufferSRAM estimates area.
+  # The buffer also stores the
+  # 32-bit cross-K-wave psums; there is no separate Tile psum SRAM.
   - !Memory
     name: GlobalBuffer
     component_class: SmartBufferSRAM
@@ -149,11 +167,11 @@ arch:
     tensors: {keep: All}
     total_latency: max(a.n_calls / a.throughput for a in actions)
     actions:
-    - {name: read, bits_per_action: global_buffer_width_bits}
-    - {name: write, bits_per_action: global_buffer_width_bits}
+    - {name: read, energy: global_buffer_read_energy_j, bits_per_action: global_buffer_width_bits}
+    - {name: write, energy: global_buffer_write_energy_j, bits_per_action: global_buffer_width_bits}
     extra_attributes_for_component_model:
       n_banks: global_buffer_banks
-      n_rw_ports: 2
+      n_rw_ports: global_buffer_rw_ports
 
   # The physical system contains a 1x4 inter-tile NoC. This zero-cost Container marks
   # its location in
@@ -336,30 +354,30 @@ macro_types:
   m32x8:
     rows: 32
     columns: 8
-    macro_partial_vmm_fixed_energy: 56.77126143438238e-12
-    macro_partial_vmm_energy_per_active_row: 0.7258980801755507e-12
+    macro_partial_vmm_fixed_energy: 50.73939625305969e-12
+    macro_partial_vmm_energy_per_active_row: 0.9030969920918848e-12
   m64x8:
     rows: 64
     columns: 8
-    macro_partial_vmm_fixed_energy: 96.52411517183711e-12
-    macro_partial_vmm_energy_per_active_row: 0.47614490409539745e-12
+    macro_partial_vmm_fixed_energy: 96.14639789310044e-12
+    macro_partial_vmm_energy_per_active_row: 0.5621812829203057e-12
   m128x8:
     rows: 128
     columns: 8
-    macro_partial_vmm_fixed_energy: 116.67678947338607e-12
-    macro_partial_vmm_energy_per_active_row: 0.43598031273562526e-12
+    macro_partial_vmm_fixed_energy: 112.74069282572697e-12
+    macro_partial_vmm_energy_per_active_row: 0.5071781810490081e-12
   m256x8:
     rows: 256
     columns: 8
-    macro_partial_vmm_fixed_energy: 202.61576175034622e-12
-    macro_partial_vmm_energy_per_active_row: 0.3661864076238677e-12
+    macro_partial_vmm_fixed_energy: 208.50056513718505e-12
+    macro_partial_vmm_energy_per_active_row: 0.39252708930787095e-12
   m512x8:
     rows: 512
     columns: 8
     # Measured active-power shape: P(N)=4.793 mW+0.004984375 mW/row*N.
     # Preserve the characterized full-row dynamic energy while adopting this ratio.
-    macro_partial_vmm_fixed_energy: 298.2047314093936e-12
-    macro_partial_vmm_energy_per_active_row: 0.31011145589791284e-12
+    macro_partial_vmm_fixed_energy: 294.57601810755614e-12
+    macro_partial_vmm_energy_per_active_row: 0.30633785525867935e-12
 
 # Per-Tile physical macro inventory. The current mapping endpoint is homogeneous, so
 # this baseline contains one type. A future DSE case can use, for example,

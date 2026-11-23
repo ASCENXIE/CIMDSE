@@ -1,0 +1,9 @@
+{
+  "kind": "vit",
+  "name": "vit_l16",
+  "shape": {"tokens": 192, "hidden": 1024, "heads": 16, "mlp": 4096, "blocks": 24, "classes": 1000, "patch_k": 768},
+  "query_block": 64,
+  "kv_block": 64,
+  "query_blocks": [32, 64, 128, 192],
+  "kv_blocks": [32, 64, 128, 192]
+}

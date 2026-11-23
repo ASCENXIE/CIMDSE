@@ -1,0 +1,7 @@
+{
+  "kind": "vit",
+  "name": "synthetic_vit_head_pipeline_integration",
+  "shape": {"tokens": 4, "hidden": 128, "heads": 2, "mlp": 256, "blocks": 1, "classes": 8},
+  "query_block": 2,
+  "kv_block": 2
+}

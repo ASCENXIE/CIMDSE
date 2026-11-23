@@ -1,0 +1,1055 @@
+{
+  "kind": "cnn",
+  "name": "resnet18",
+  "batch_size": 1,
+  "input_image_shape": [
+    224,
+    224,
+    3
+  ],
+  "geometry_version": "imagenet_224_resnet_geometry_v1",
+  "architecture_reference": "https://docs.pytorch.org/vision/stable/_modules/torchvision/models/resnet.html",
+  "architecture_variant": "basicblock",
+  "geometry_basis": "explicit architecture plus user-confirmed input; source shapes cross-checked separately",
+  "non_cim_service": "zero_time_zero_energy_with_shape_dependencies",
+  "execution_order": "serial_CIM_layers",
+  "layers": [
+    {
+      "name": "T0",
+      "kind": "conv",
+      "role": "stem",
+      "input_source": "input",
+      "output_tensor": "T0.output",
+      "output_shape": [
+        112,
+        112,
+        64
+      ],
+      "dependencies": [],
+      "input_height": 224,
+      "input_width": 224,
+      "input_channels": 3,
+      "kernel": [
+        7,
+        7
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        3,
+        3,
+        3,
+        3
+      ],
+      "dilation": 1,
+      "output_channels": 64,
+      "expected_pkn": [
+        12544,
+        147,
+        64
+      ]
+    },
+    {
+      "name": "T1",
+      "kind": "conv",
+      "role": "stage1.block0.conv1",
+      "input_source": "stem.pool",
+      "output_tensor": "T1.output",
+      "output_shape": [
+        56,
+        56,
+        64
+      ],
+      "dependencies": [
+        "T0"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 64,
+      "expected_pkn": [
+        3136,
+        576,
+        64
+      ]
+    },
+    {
+      "name": "T2",
+      "kind": "conv",
+      "role": "stage1.block0.conv2",
+      "input_source": "T1.output",
+      "output_tensor": "T2.output",
+      "output_shape": [
+        56,
+        56,
+        64
+      ],
+      "dependencies": [
+        "T1"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 64,
+      "expected_pkn": [
+        3136,
+        576,
+        64
+      ]
+    },
+    {
+      "name": "T3",
+      "kind": "conv",
+      "role": "stage1.block1.conv1",
+      "input_source": "stage1.block0.output",
+      "output_tensor": "T3.output",
+      "output_shape": [
+        56,
+        56,
+        64
+      ],
+      "dependencies": [
+        "T2"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 64,
+      "expected_pkn": [
+        3136,
+        576,
+        64
+      ]
+    },
+    {
+      "name": "T4",
+      "kind": "conv",
+      "role": "stage1.block1.conv2",
+      "input_source": "T3.output",
+      "output_tensor": "T4.output",
+      "output_shape": [
+        56,
+        56,
+        64
+      ],
+      "dependencies": [
+        "T3"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 64,
+      "expected_pkn": [
+        3136,
+        576,
+        64
+      ]
+    },
+    {
+      "name": "T5",
+      "kind": "conv",
+      "role": "stage2.block0.conv1",
+      "input_source": "stage1.block1.output",
+      "output_tensor": "T5.output",
+      "output_shape": [
+        28,
+        28,
+        128
+      ],
+      "dependencies": [
+        "T4"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 128,
+      "expected_pkn": [
+        784,
+        576,
+        128
+      ]
+    },
+    {
+      "name": "T6",
+      "kind": "conv",
+      "role": "stage2.block0.conv2",
+      "input_source": "T5.output",
+      "output_tensor": "T6.output",
+      "output_shape": [
+        28,
+        28,
+        128
+      ],
+      "dependencies": [
+        "T5"
+      ],
+      "input_height": 28,
+      "input_width": 28,
+      "input_channels": 128,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 128,
+      "expected_pkn": [
+        784,
+        1152,
+        128
+      ]
+    },
+    {
+      "name": "T7",
+      "kind": "conv",
+      "role": "stage2.block0.shortcut",
+      "input_source": "stage1.block1.output",
+      "output_tensor": "T7.output",
+      "output_shape": [
+        28,
+        28,
+        128
+      ],
+      "dependencies": [
+        "T6"
+      ],
+      "input_height": 56,
+      "input_width": 56,
+      "input_channels": 64,
+      "kernel": [
+        1,
+        1
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "dilation": 1,
+      "output_channels": 128,
+      "expected_pkn": [
+        784,
+        64,
+        128
+      ]
+    },
+    {
+      "name": "T8",
+      "kind": "conv",
+      "role": "stage2.block1.conv1",
+      "input_source": "stage2.block0.output",
+      "output_tensor": "T8.output",
+      "output_shape": [
+        28,
+        28,
+        128
+      ],
+      "dependencies": [
+        "T7"
+      ],
+      "input_height": 28,
+      "input_width": 28,
+      "input_channels": 128,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 128,
+      "expected_pkn": [
+        784,
+        1152,
+        128
+      ]
+    },
+    {
+      "name": "T9",
+      "kind": "conv",
+      "role": "stage2.block1.conv2",
+      "input_source": "T8.output",
+      "output_tensor": "T9.output",
+      "output_shape": [
+        28,
+        28,
+        128
+      ],
+      "dependencies": [
+        "T8"
+      ],
+      "input_height": 28,
+      "input_width": 28,
+      "input_channels": 128,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 128,
+      "expected_pkn": [
+        784,
+        1152,
+        128
+      ]
+    },
+    {
+      "name": "T10",
+      "kind": "conv",
+      "role": "stage3.block0.conv1",
+      "input_source": "stage2.block1.output",
+      "output_tensor": "T10.output",
+      "output_shape": [
+        14,
+        14,
+        256
+      ],
+      "dependencies": [
+        "T9"
+      ],
+      "input_height": 28,
+      "input_width": 28,
+      "input_channels": 128,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 256,
+      "expected_pkn": [
+        196,
+        1152,
+        256
+      ]
+    },
+    {
+      "name": "T11",
+      "kind": "conv",
+      "role": "stage3.block0.conv2",
+      "input_source": "T10.output",
+      "output_tensor": "T11.output",
+      "output_shape": [
+        14,
+        14,
+        256
+      ],
+      "dependencies": [
+        "T10"
+      ],
+      "input_height": 14,
+      "input_width": 14,
+      "input_channels": 256,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 256,
+      "expected_pkn": [
+        196,
+        2304,
+        256
+      ]
+    },
+    {
+      "name": "T12",
+      "kind": "conv",
+      "role": "stage3.block0.shortcut",
+      "input_source": "stage2.block1.output",
+      "output_tensor": "T12.output",
+      "output_shape": [
+        14,
+        14,
+        256
+      ],
+      "dependencies": [
+        "T11"
+      ],
+      "input_height": 28,
+      "input_width": 28,
+      "input_channels": 128,
+      "kernel": [
+        1,
+        1
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "dilation": 1,
+      "output_channels": 256,
+      "expected_pkn": [
+        196,
+        128,
+        256
+      ]
+    },
+    {
+      "name": "T13",
+      "kind": "conv",
+      "role": "stage3.block1.conv1",
+      "input_source": "stage3.block0.output",
+      "output_tensor": "T13.output",
+      "output_shape": [
+        14,
+        14,
+        256
+      ],
+      "dependencies": [
+        "T12"
+      ],
+      "input_height": 14,
+      "input_width": 14,
+      "input_channels": 256,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 256,
+      "expected_pkn": [
+        196,
+        2304,
+        256
+      ]
+    },
+    {
+      "name": "T14",
+      "kind": "conv",
+      "role": "stage3.block1.conv2",
+      "input_source": "T13.output",
+      "output_tensor": "T14.output",
+      "output_shape": [
+        14,
+        14,
+        256
+      ],
+      "dependencies": [
+        "T13"
+      ],
+      "input_height": 14,
+      "input_width": 14,
+      "input_channels": 256,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 256,
+      "expected_pkn": [
+        196,
+        2304,
+        256
+      ]
+    },
+    {
+      "name": "T15",
+      "kind": "conv",
+      "role": "stage4.block0.conv1",
+      "input_source": "stage3.block1.output",
+      "output_tensor": "T15.output",
+      "output_shape": [
+        7,
+        7,
+        512
+      ],
+      "dependencies": [
+        "T14"
+      ],
+      "input_height": 14,
+      "input_width": 14,
+      "input_channels": 256,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 512,
+      "expected_pkn": [
+        49,
+        2304,
+        512
+      ]
+    },
+    {
+      "name": "T16",
+      "kind": "conv",
+      "role": "stage4.block0.conv2",
+      "input_source": "T15.output",
+      "output_tensor": "T16.output",
+      "output_shape": [
+        7,
+        7,
+        512
+      ],
+      "dependencies": [
+        "T15"
+      ],
+      "input_height": 7,
+      "input_width": 7,
+      "input_channels": 512,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 512,
+      "expected_pkn": [
+        49,
+        4608,
+        512
+      ]
+    },
+    {
+      "name": "T17",
+      "kind": "conv",
+      "role": "stage4.block0.shortcut",
+      "input_source": "stage3.block1.output",
+      "output_tensor": "T17.output",
+      "output_shape": [
+        7,
+        7,
+        512
+      ],
+      "dependencies": [
+        "T16"
+      ],
+      "input_height": 14,
+      "input_width": 14,
+      "input_channels": 256,
+      "kernel": [
+        1,
+        1
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "dilation": 1,
+      "output_channels": 512,
+      "expected_pkn": [
+        49,
+        256,
+        512
+      ]
+    },
+    {
+      "name": "T18",
+      "kind": "conv",
+      "role": "stage4.block1.conv1",
+      "input_source": "stage4.block0.output",
+      "output_tensor": "T18.output",
+      "output_shape": [
+        7,
+        7,
+        512
+      ],
+      "dependencies": [
+        "T17"
+      ],
+      "input_height": 7,
+      "input_width": 7,
+      "input_channels": 512,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 512,
+      "expected_pkn": [
+        49,
+        4608,
+        512
+      ]
+    },
+    {
+      "name": "T19",
+      "kind": "conv",
+      "role": "stage4.block1.conv2",
+      "input_source": "T18.output",
+      "output_tensor": "T19.output",
+      "output_shape": [
+        7,
+        7,
+        512
+      ],
+      "dependencies": [
+        "T18"
+      ],
+      "input_height": 7,
+      "input_width": 7,
+      "input_channels": 512,
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        1,
+        1
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "dilation": 1,
+      "output_channels": 512,
+      "expected_pkn": [
+        49,
+        4608,
+        512
+      ]
+    },
+    {
+      "name": "T20",
+      "kind": "gemm",
+      "role": "classifier",
+      "input_source": "global.pool",
+      "output_tensor": "T20.output",
+      "output_shape": [
+        1,
+        1,
+        1000
+      ],
+      "dependencies": [
+        "T19"
+      ],
+      "p": 1,
+      "k": 512,
+      "n": 1000,
+      "expected_pkn": [
+        1,
+        512,
+        1000
+      ]
+    }
+  ],
+  "shape_steps": [
+    {
+      "kind": "layer",
+      "name": "T0"
+    },
+    {
+      "kind": "maxpool",
+      "output": "stem.pool",
+      "sources": [
+        "T0.output"
+      ],
+      "shape": [
+        56,
+        56,
+        64
+      ],
+      "kernel": [
+        3,
+        3
+      ],
+      "stride": [
+        2,
+        2
+      ],
+      "padding": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T1"
+    },
+    {
+      "kind": "layer",
+      "name": "T2"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage1.block0.output",
+      "sources": [
+        "T2.output",
+        "stem.pool"
+      ],
+      "shape": [
+        56,
+        56,
+        64
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T3"
+    },
+    {
+      "kind": "layer",
+      "name": "T4"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage1.block1.output",
+      "sources": [
+        "T4.output",
+        "stage1.block0.output"
+      ],
+      "shape": [
+        56,
+        56,
+        64
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T5"
+    },
+    {
+      "kind": "layer",
+      "name": "T6"
+    },
+    {
+      "kind": "layer",
+      "name": "T7"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage2.block0.output",
+      "sources": [
+        "T6.output",
+        "T7.output"
+      ],
+      "shape": [
+        28,
+        28,
+        128
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T8"
+    },
+    {
+      "kind": "layer",
+      "name": "T9"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage2.block1.output",
+      "sources": [
+        "T9.output",
+        "stage2.block0.output"
+      ],
+      "shape": [
+        28,
+        28,
+        128
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T10"
+    },
+    {
+      "kind": "layer",
+      "name": "T11"
+    },
+    {
+      "kind": "layer",
+      "name": "T12"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage3.block0.output",
+      "sources": [
+        "T11.output",
+        "T12.output"
+      ],
+      "shape": [
+        14,
+        14,
+        256
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T13"
+    },
+    {
+      "kind": "layer",
+      "name": "T14"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage3.block1.output",
+      "sources": [
+        "T14.output",
+        "stage3.block0.output"
+      ],
+      "shape": [
+        14,
+        14,
+        256
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T15"
+    },
+    {
+      "kind": "layer",
+      "name": "T16"
+    },
+    {
+      "kind": "layer",
+      "name": "T17"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage4.block0.output",
+      "sources": [
+        "T16.output",
+        "T17.output"
+      ],
+      "shape": [
+        7,
+        7,
+        512
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T18"
+    },
+    {
+      "kind": "layer",
+      "name": "T19"
+    },
+    {
+      "kind": "residual_add",
+      "output": "stage4.block1.output",
+      "sources": [
+        "T19.output",
+        "stage4.block0.output"
+      ],
+      "shape": [
+        7,
+        7,
+        512
+      ]
+    },
+    {
+      "kind": "avgpool",
+      "output": "global.pool",
+      "sources": [
+        "stage4.block1.output"
+      ],
+      "shape": [
+        1,
+        1,
+        512
+      ],
+      "output_size": [
+        1,
+        1
+      ]
+    },
+    {
+      "kind": "layer",
+      "name": "T20"
+    }
+  ],
+  "macs": 1814073344,
+  "source_sha256": "b58954317e87d6e2a8b124909f9b96b09d78cbb02748a67b248a5907c31d81bf",
+  "source_shape_match": true,
+  "validation_status": "architecture_and_source_shape_validated"
+}

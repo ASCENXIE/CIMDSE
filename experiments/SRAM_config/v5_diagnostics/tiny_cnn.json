@@ -1,0 +1,14 @@
+{
+  "kind": "cnn",
+  "name": "synthetic_cnn_geometry_integration",
+  "layers": [
+    {"name": "conv3", "kind": "conv", "dependencies": [],
+     "input_height": 4, "input_width": 4, "input_channels": 3,
+     "kernel": [3, 3], "stride": [1, 1], "padding": [1, 1, 1, 1],
+     "output_channels": 16, "expected_pkn": [16, 27, 16]},
+    {"name": "conv1", "kind": "conv", "dependencies": ["conv3"],
+     "input_height": 4, "input_width": 4, "input_channels": 16,
+     "kernel": [1, 1], "stride": [1, 1], "padding": [0, 0, 0, 0],
+     "output_channels": 8, "expected_pkn": [16, 16, 8]}
+  ]
+}

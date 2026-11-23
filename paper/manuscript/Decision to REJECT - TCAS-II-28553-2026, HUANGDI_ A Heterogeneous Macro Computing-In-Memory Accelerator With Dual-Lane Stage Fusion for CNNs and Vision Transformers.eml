@@ -1,0 +1,319 @@
+Received: from a27-69.smtp-out.us-west-2.amazonses.com (unknown [54.240.27.69])
+	by hzbj-edu-front-2.icoremail.net (Coremail) with UTF8SMTP id BLQMCkCW2f4iY99qrP7pAA--.22706S2;
+	Mon, 26 Oct 2026 22:26:43 +0800 (CST)
+Received: from a27-69.smtp-out.us-west-2.amazonses.com (unknown [54.240.27.69])
+	by ucloud-mxproxy-9 (Coremail) with SMTP id AQAAfwAXHLgeY99qKAJsAA--.397S3;
+	Mon, 26 Oct 2026 22:26:40 +0800 (CST)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=zpznxeidjqub2tus7cajdamhvcf6ct3w; d=manuscriptcentral.com;
+	t=1793024797;
+	h=Date:From:Reply-To:To:Cc:Message-ID:Subject:MIME-Version:Content-Type:Content-Transfer-Encoding;
+	bh=47ccgPCFTbfCnCcCRcGyK4xoXEgB6MmCCb/X8vUTA/k=;
+	b=iimYEJ2sEC/bYgujnGyh7FSv+E5/gVq8A12A73ucPslVEFy0gOTrvcdcvLxoBc0D
+	l0PH9+9BiVhtvZTNbp6e37pKSBWHJfN/r4o/HxM36NSWge/iSHsErtD9xviebusByuN
+	EKhxms8gn3bUbQSkEDNl4cdEU0eCVjl+B5ZoQZWg=
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
+	s=hsbnp7p3ensaochzwyq5wwmceodymuwv; d=amazonses.com; t=1793024797;
+	h=Date:From:Reply-To:To:Cc:Message-ID:Subject:MIME-Version:Content-Type:Content-Transfer-Encoding:Feedback-ID;
+	bh=47ccgPCFTbfCnCcCRcGyK4xoXEgB6MmCCb/X8vUTA/k=;
+	b=If1BPXGvO5z9o3FuASuqZHfokcKw3WUH522EGnRxJoRXFfB1l6FRt/4d08lkWkZM
+	x/Nml8N0/FFpj5wzCntVypURRBUeBQlqliVZaAT7vpIHmAzY8InTHVa0mNMqVqG+fct
+	y7ZZmiBTzjUMXCAC+g8uwnbxHorb8DIua9buwv7Y=
+Date: Mon, 26 Oct 2026 14:26:37 +0000
+From: "IEEE Transactions on Circuits and Systems II: Express Briefs" <onbehalfof@manuscriptcentral.com>
+Reply-To: edoardo.bonizzoni@unipv.it
+To: liangchang@uestc.edu.cn
+Cc: aisenxie@std.uestc.edu.cn, xiaowenzhao@std.uestc.edu.cn, 
+	zhouchyang@163.com, yizhezhang@std.uestc.edu.cn, 
+	ruiping.fan@tineee.com, zhouj@ustc.edu.cn, liangchang@uestc.edu.cn
+Message-ID: <010101a1789b2a35-09defe2b-8a9e-4dec-b17a-e21a90102a78-000000@us-west-2.amazonses.com>
+Subject: Decision to REJECT - TCAS-II-28553-2026, HUANGDI: A Heterogeneous
+ Macro Computing-In-Memory Accelerator With Dual-Lane Stage Fusion for CNNs
+ and Vision Transformers
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+X-SID: 1
+X-PRODUCT: s1m
+X-ENV-TYPE: prod
+X-ENV-NAME: 4280
+X-S1Info: xik_53Z9GpTnGjmEygMA9YYdntBx3Q8DvGFxuXTp1wnUR4p1u3Nc28d3Sku1WW9k36VRnAHMFrAEuZuGR6g6L744uBnh
+Feedback-ID: ::1.us-west-2.y8789kd/oyDlGffYrP88IUZ2JiqaxJLDOSJ1+/ZSPI4=:AmazonSES
+X-SES-Outgoing: 2026.10.26-54.240.27.69
+X-CM-TRANSID:AQAAfwAXHLgeY99qKAJsAA--.397S3
+Sender: 010101a1789b2a35-09defe2b-8a9e-4dec-b17a-e21a90102a78-000000@outbound.manuscriptcentral.com
+Authentication-Results: hzbj-edu-front-2.icoremail.net; spf=pass smtp.
+	mail=010101a1789b2a35-09defe2b-8a9e-4dec-b17a-e21a90102a78-000000@outb
+	ound.manuscriptcentral.com; dkim=pass header.i=@manuscriptcentral.com;
+	 dkim=temperror header.i=@amazonses.com
+X-Coremail-Antispam: 1UD129KBjvAXoWfJr1Uury5Cr4fXrWxCFWDtwb_yoW8CF4UWo
+	WfGw4DXFn7Kr1rCF45KFykurWUWFW8ur48ZryUWr45JF4qqFsrKa45Z39rXasxAF4jgFnr
+	Xa4kJ3y5tFs2y3Z3n29KB7ZKAUJUUUU8529EdanIXcx71UUUUU7v73VFW2AGmfu7bjvjm3
+	AaLaJ3UjIYCTnIWjp_UUUOe7k0a2IF6w4kM7kC6x804xWl14x267AKxVWUJVW8JwAFIxvE
+	14AKwVWUJVWUGwA2ocxC6x80cI8vj40E4IxF12IF4wA2F7IY1VAKz4vEj48ve4kI8wA2z4
+	x0Y4vE2Ix0cI8IcVAFwI0_Gr0_Xr1l84ACjcxK6xIIjxv20xvEc7CjxVAFwI0_Gr0_Cr1l
+	84ACjcxK6I8E87Iv67AKxVW0oVCq3wA2z4x0Y4vEx4A2jsIEc7CjxVAFwI0_GcCE3s1le2
+	I262IYc4CY6c8Ij28IcVAaY2xG8wAqx4xG64xvF2IEw4CE5I8CrVC2j2WlYx0E2Ix0cI8I
+	cVAFwI0_Jr0_Jr4lYx0Ex4A2jsIE14v26F4j6r4UJwAm72CE4IkC6x0Yz7v_Jr0_Gr1lF7
+	xvr2IY64vIr41lFcxC0VAqx4xG64AKrs4lw4CE7480Y4vE14AKx2xKxVC2ax8xMx02cVCv
+	0xWlc2xSY4AK6IIF6ry5MxkI7II2jI8vz4vEwIxGrwCYIxAIcVC0I7IYx2IY67AKxVWUJV
+	WUCwCYIxAIcVC0I7IYx2IY6xkF7I0E14v26r1j6r4UMxvI42IY6I8E87Iv67AKxVWUJVW8
+	JwCYIxAIcVC2z280aVCY1x0267AKxVWUJVW8JwCF04k20xvY0x0EwIxGrwCF04k20xvEw4
+	C26cxK6c8Ij28IcwCF72vE77IF4wCFx2IqxVCFs4IE7xkEbVWUJVW8JwC20s026c02F40E
+	14v26r106r1rMI8I3I0E7480Y4vE14v26r1j6r18MI8E67AF67kF1VAFwI0_Jw0_GFylIx
+	kGc2Ij64vIr41lIxAIcVCF04k26cxKx2IYs7xG6r1j6r1xYxBIdaVFxhVjvjDU0xZFpf9x
+	07bDnQbUUUUU=
+
+26-Oct-2026<br /><br />Dear Dr. Chang:<br /><br />I am writing in regards t=
+o manuscript ID TCAS-II-28553-2026 entitled "HUANGDI: A Heterogeneous Macro=
+ Computing-In-Memory Accelerator With Dual-Lane Stage Fusion for CNNs and V=
+ision Transformers" which you submitted to the IEEE Transactions on Circuit=
+s and Systems II: Express Briefs.<br /><br />Your manuscript has been revie=
+wed by several experts in the field. Based on the recommendations given by =
+the associate editor and in view of the comments and concerns expressed by =
+reviewers found at the bottom of this letter, I regret to inform you that y=
+our manuscript is REJECTED for publication in the IEEE Transactions on Circ=
+uits and Systems II: Express Briefs.<br /><br />Thank you for considering t=
+he IEEE Transactions on Circuits and Systems II: Express Briefs for the pub=
+lication of your research. =C2=A0I hope the outcome of this specific submis=
+sion will not discourage you from your submission of future manuscripts.<br=
+ /><br />Sincerely,<br /><br />Prof. Edoardo Bonizzoni<br />Editor-in-Chief=
+, IEEE Transactions on Circuits and Systems II: Express Briefs<br />edoardo=
+.bonizzoni@unipv.it<br /><br /><br />Editors' Comments to the Authors:<br /=
+><br />Associate Editor: 1<br />Comments to the Author:<br />Unfortunately,=
+ the reviewers raised several shared concerns.<br /><br />A more in-depth a=
+nalysis of the design-space exploration (DSE) is required to assess the rob=
+ustness and generalizability of the selected architecture. The main concern=
+s relate to model coverage, the completeness of the cost model, and the cri=
+teria used to select the final configuration.<br /><br />The comparisons in=
+ Table I involve heterogeneous design technologies and implementation stage=
+s, which limit the fairness of direct comparisons. In particular, the table=
+ includes DRAM-based architectures and results measured on fabricated silic=
+on, while the proposed design is SRAM-based and evaluated at the post-synth=
+esis stage. These differences should be acknowledged when interpreting the =
+reported performance metrics.<br /><br />The reviewers also requested furth=
+er implementation details, including the scheduler and mapping mechanisms, =
+dataflow execution, and the roles of specific architectural components.<br =
+/><br />The impact of key design choices on computational accuracy and end-=
+to-end prediction quality is not adequately analyzed. In particular, the ac=
+curacy degradation due to quantization and blockwise RMSNorm is not isolate=
+d, and the numerical errors introduced by the proposed vector processing te=
+chniques are not characterized.<br /><br />The evaluation does not isolate =
+the benefits and overheads of individual architectural choices.<br /><br />=
+Finally, the manuscript does not clearly distinguish its novel contribution=
+s from known optimization techniques in neural-network accelerator design. =
+Many proposed mechanisms, including pipelining and stage fusion, have been =
+explored in prior work. Moreover, the proposed DSE methodology is not chara=
+cterized against existing approaches in terms of novelty and benefits.<br /=
+><br />Senior Area Editor: 2<br />Comments to Author:<br />(There are no co=
+mments. Please check to see if comments were included as a file attachment =
+with this e-mail or as an attachment in your Author Center.)<br /><br /><br=
+ />Reviewers' Comments to the Authors:<br /><br />Reviewer: 1<br /><br />Co=
+mments to the Author<br />This paper presents a design space exploration (D=
+SE) of compute-in-memory (CIM) macros and proposes an architecture for acce=
+lerating CNNs and Transformers. Although the work is interesting, several m=
+ajor concerns need to be addressed:<br /><br />1. The paper proposes a Vect=
+or Processing Unit (VPU) for implementing functions such as Softmax and RMS=
+Norm. What error does the VPU introduce when computing these functions, and=
+ how does its accuracy compare with that of other implementations?<br /><br=
+ />2. What does =E2=80=9CN=E2=80=9D represent in Fig. 4? Is it a buffer or =
+a more complex routing component? Since it supports data movement in multip=
+le directions, its functionality and implementation should be clarified.<br=
+ /><br />3. Table I compares CIM implementations based on different memory =
+technologies, including SRAM and DRAM. These technologies have different ch=
+aracteristics that affect the reported metrics. Which memory technology doe=
+s the proposed architecture use, and how are these differences accounted fo=
+r to ensure a fair comparison?<br /><br />4. How does the proposed DSE meth=
+odology compare with existing DSE approaches? The paper does not provide a =
+detailed comparison with prior DSE methodologies, making it difficult to as=
+sess the advantages of the proposed approach.<br /><br />Reviewer: 2<br /><=
+br />Comments to the Author<br />The manuscript presents HUANGDI, a heterog=
+eneous digital SRAM CIM accelerator for unified CNN and vision Transformer =
+acceleration. The architecture combines compiler-guided exploration of hete=
+rogeneous CIM macro granularity, a dual-lane multicore dataflow supporting =
+CNN inter-layer fusion and overlapping Transformer operations, and a shared=
+ vector processing unit for online softmax and blockwise RMSNorm.<br /><br =
+/>Overall, I find the work interesting and relevant to TCAS-II. The propose=
+d architecture addresses important bottlenecks in unified CNN/Transformer a=
+cceleration, and the combination of design-space exploration, architectural=
+ design, hardware synthesis, and accuracy evaluation is appreciated. The re=
+ported improvements in end-to-end execution cycles and global-buffer access=
+es are promising.<br /><br />However, I have several concerns regarding the=
+ generalizability of the design-space exploration, the novelty of the propo=
+sed dataflow and vector processing techniques, and the completeness and fai=
+rness of the hardware evaluation. The following points should be addressed =
+to better substantiate the claimed contributions.<br /><br />1-Generalizabi=
+lity of the heterogeneous CIM macro exploration:<br />Section II presents a=
+ compiler-characterization-guided DSE that selects the heterogeneous 64+512=
+ row CIM tile using ResNet-18 and ViT-B/16.<br /><br />Although the methodo=
+logy is interesting, using only two networks to determine the macro configu=
+ration raises concerns about its generalizability. Different networks, part=
+icularly larger variants, may exhibit different reduction dimensions and ma=
+pping requirements. Would the same heterogeneous configuration remain optim=
+al, or would the DSE select another configuration requiring hardware redesi=
+gn?<br /><br />In particular, VGG-16 and ViT-L/16 are already included in t=
+he dataflow evaluation in Fig. 7 but are not considered in the macro-select=
+ion process. Could the authors explain this choice?<br />I suggest extendin=
+g the DSE evaluation to additional representative workloads or providing a =
+sensitivity analysis showing how close the selected 64+512 configuration re=
+mains to the workload-specific optimum. This would substantially strengthen=
+ the first contribution and demonstrate that the proposed heterogeneous mac=
+ro organization is not primarily optimized for the two selected networks.<b=
+r /><br />2-Completeness of the DSE cost model and architectural parameter =
+selection:<br />The two level DSE in Section II considers macro VMM and par=
+tial-sum accumulation energy but explicitly excludes weight loading, contro=
+l and interconnect.<br />Although the authors acknowledge this limitation, =
+these contributions may be significant when comparing configurations with d=
+ifferent macro sizes, numbers of macros, and communication requirements. Th=
+eir exclusion could potentially affect the relative ranking of candidate ar=
+chitectures.<br />Have the authors estimated the energy and area costs of t=
+hese components? How sensitive is the selected configuration to their exclu=
+sion? Even an approximate analysis or sensitivity study would help establis=
+h the robustness of the proposed exploration methodology.<br /><br />Furthe=
+rmore, while the selection of the 64 + 512 row macro combination is explain=
+ed, it is less clear how the other architectural parameters were determined=
+. In particular, why were four CIM tiles per core and four CIM cores select=
+ed? Were these parameters fixed before the exploration, or were they jointl=
+y optimized?<br />Since these architectural choices may influence utilizati=
+on, communication overhead, and the optimal macro configuration, their sele=
+ction should be justified.<br /><br />3-Novelty of the dual-lane multicore =
+dataflow:<br />The manuscript proposes a dual-lane multicore dataflow suppo=
+rting independent execution, cross-core accumulation, CNN inter-layer fusio=
+n, and overlapping projection with self-attention across consecutive Transf=
+ormer heads.<br />While these techniques can improve execution efficiency, =
+inter-layer fusion, pipelining, and flexible mapping of CNN and Transformer=
+ operations have been extensively explored in previous accelerators.<br />I=
+n particular, references [12] and [13] already investigate unified CNN/Tran=
+sformer acceleration through reconfigurable architectures and flexible data=
+flows. Other heterogeneous CIM-based architectures, such as "EAGLE: A Flexi=
+ble Heterogeneous Analog Compute-In-Memory Architecture With RISC-V Program=
+mable Multi-Core Accelerators", have also investigated fine-grained inter-l=
+ayer pipelining (including overlap across attention heads and projection la=
+yers).<br />I would encourage the authors to clarify what specifically dist=
+inguishes the proposed dual-lane dataflow from existing approaches.<br /><b=
+r />In addition, Figure 5 illustrates the proposed execution modes, and Fig=
+. 7 provides a useful ablation against single-lane and stage-separated conf=
+igurations. However, the novelty would be more convincing if the authors ex=
+plicitly differentiated their approach from conventional pipelining or doub=
+le-buffered execution and clarified which architectural mechanism enables t=
+he reported improvements.<br /><br />4-Blockwise RMSNorm:<br />According to=
+ Equation (4), a fixed-size statistics block of 64 elements is used to esti=
+mate a single RMS normalization factor, which is then applied to all data b=
+locks of the input vector. This differs from conventional RMSNorm, where th=
+e normalization factor is computed over the complete normalization dimensio=
+n. How is the statistics block selected?<br /><br />Additionally, the formu=
+lation includes a learned scaling vector. Are the original pretrained param=
+eters reused, or is retraining or fine-tuning required? This should be expl=
+icitly clarified.<br /><br />5- Comparison with prior accelerators:<br />th=
+e proposed accelerator is evaluated through synthesis in 22-nm CMOS technol=
+ogy, whereas Table I includes accelerators evaluated using different implem=
+entation methodologies, including fabricated silicon measurements (e.g., [4=
+]).<br />Although synthesis-based evaluation is valuable, comparisons betwe=
+en pre-layout estimates and measured silicon results should be clearly qual=
+ified. I suggest adding an implementation-status row to Table I distinguish=
+ing synthesis, post-layout, and measured silicon results.<br /><br />Overal=
+l assessment<br />The manuscript presents a relevant and potentially useful=
+ approach to unified CNN and Transformer acceleration. I appreciate the eff=
+ort to integrate heterogeneous CIM macro granularity, flexible multicore da=
+taflow, and shared vector processing within a common accelerator, supported=
+ by design-space exploration, synthesis, and accuracy evaluation.<br />Neve=
+rtheless, the central contributions would benefit from stronger evidence of=
+ generalizability, clearer differentiation from existing architectural and =
+scheduling techniques, and a more complete assessment of the hardware costs=
+ and evaluation baselines.<br />Addressing these points would significantly=
+ improve the technical clarity and strengthen the claimed contributions of =
+the manuscript.<br /><br />Reviewer: 3<br /><br />Comments to the Author<br=
+ />This paper proposes HUANGDI, a heterogeneous digital SRAM compute-in-mem=
+ory (CIM) accelerator for unified CNN and Vision Transformer acceleration. =
+The design employs compiler-guided design-space exploration (DSE) to select=
+ a 64-row + 512-row heterogeneous CIM tile, a dual-lane fusible dataflow to=
+ improve core utilization and reduce intermediate data movement, and a UniS=
+tream-VPU that shares hardware resources between online softmax and blockwi=
+se RMSNorm. Synthesized in 22-nm CMOS technology, the proposed accelerator =
+achieves energy efficiencies of 17.4 TOPS/W for ResNet-18 and 16.2 TOPS/W f=
+or ViT-B/16. However, several issues and requests for clarification remain:=
+<br />Major comments<br />=E2=80=A2 The paper motivates the proposed archit=
+ecture by highlighting the challenges of unified CNN and ViT acceleration. =
+However, the three bottlenecks identified in Fig. 1 can also arise in dedic=
+ated CNN or ViT accelerators, rather than being specific to unified acceler=
+ation. Please clarify how these challenges are exacerbated by supporting bo=
+th workloads on a shared architecture and further justify the benefits of t=
+he proposed unified design.<br />=E2=80=A2 Fig. 1(c) includes a MAC operati=
+on followed by normalization in the softmax processing path, which appears =
+to include the subsequent PV operation rather than softmax alone. Please cl=
+arify whether the diagram represents only softmax or also includes the atte=
+ntion computation, and revise the labeling accordingly.<br />=E2=80=A2 Sect=
+ion II introduces compiler-guided DSE to select the 64-row + 512-row hetero=
+geneous CIM tile. However, the DSE process is not sufficiently explained to=
+ justify the selection of this specific macro combination. The authors shou=
+ld provide a more detailed explanation of the DSE process and the final con=
+figuration selection criteria.<br />=E2=80=A2 Fig. 6(b) proposes a shared d=
+atapath for online softmax and blockwise RMSNorm, but the area and power be=
+nefits of hardware resource sharing are not quantitatively evaluated. Pleas=
+e provide an area and power comparison with separate datapath implementatio=
+ns to demonstrate the effectiveness of the proposed hardware sharing.<br />=
+=E2=80=A2 Fig. 9 presents the power and area breakdown of the proposed acce=
+lerator, but it does not quantify the additional area and power overhead in=
+troduced by the proposed architecture. Please provide an area and power com=
+parison with a baseline architecture without the dual-lane and fusion mecha=
+nisms to clarify the additional hardware cost.<br />Minor comments<br />=E2=
+=80=A2 The publication year of Reference [13] should be corrected from 2024=
+ to 2025, consistent with the cited journal volume and issue.<br /><br /><b=
+r />Reviewer: 4<br /><br />Comments to the Author<br />The paper presents a=
+ unified digital SRAM-CIM accelerator, HUANGDI, that combines heterogeneous=
+ CIM macros (64-row + 512-row), dual-lane stage fusion, and a shared stream=
+ing vector processor (UniStream-VPU) for CNN and Vision Transformer acceler=
+ation. However, the manuscript does not clearly establish the novelty beyon=
+d prior work, justify several key architectural decisions, or isolate the c=
+ontribution of the proposed techniques through strong baseline comparisons =
+and analysis.<br /><br />1. Novelty is unclear<br />=E2=80=A2 What is the a=
+ctual architectural novelty beyond combining heterogeneous macros, stage fu=
+sion, and streaming vector processing? Which component is new, and which co=
+mponents are adaptations of prior work?<br />=E2=80=A2 If each idea exists =
+individually in prior literature, what capability does HUANGDI uniquely pro=
+vide?<br />2. Baselines are favorable to the proposed design<br />=E2=80=A2=
+ Why are comparisons primarily against decomposed baselines (single-lane, h=
+omogeneous, stage-separated, conventional vector processing)?<br />=E2=80=
+=A2 Why not compare against a strong integrated baseline combining existing=
+ heterogeneous-CIM, fusion, and streaming approaches? How much benefit rema=
+ins after introducing the same prior-art techniques into the baseline?<br /=
+>=E2=80=A2 When reporting end-to-end cycle reductions, do the results inclu=
+de weight loading/programming, routing, and data-movement overheads, or are=
+ they limited to compute execution?<br /><br />3. The heterogeneous tile se=
+lection is not fully convincing<br />=E2=80=A2 Why is the DSE performed pri=
+marily using ResNet-18 and ViT-B/16? Would 64+512 still be selected for oth=
+er CNNs and Transformers?<br />=E2=80=A2 Why are candidates restricted to a=
+t most two macro sizes? Were configurations such as 64+256+512 evaluated?<b=
+r />=E2=80=A2 The DSE excludes weight loading, interconnect, and control co=
+sts. Why should the selected tile remain optimal once those costs are inclu=
+ded?<br />4. Scheduler and mapping framework are under-described<br />=E2=
+=80=A2 Many of the reported gains appear to rely on compiler-guided mapping=
+ and scheduling, yet the scheduler is largely treated as a black box. What =
+exactly is being optimized, and how much do the results depend on schedulin=
+g quality?<br />=E2=80=A2 Key concepts such as "legal schedules" and "reduc=
+tion waves" are introduced without sufficient explanation. What exactly con=
+stitutes a "legal schedule"?<br /><br />5. Accuracy degradation is not anal=
+yzed<br />=E2=80=A2 ViT-B/16 loses 3.8% Top-1 accuracy relative to FP32. Wh=
+at causes this degradation?<br />=E2=80=A2 How much comes from INT8 quantiz=
+ation, and how much comes from the proposed blockwise RMSNorm formulation?<=
+br /><br />6. Transformer fusion is claimed but not quantified<br />=E2=80=
+=A2 The paper explicitly claims that projection of head N is overlapped wit=
+h attention computation of head N=E2=88=921 using the 512-row and 64-row ma=
+cros. However, it is unclear what stages are included in the overlap (proje=
+ction compute only vs. weight setup, data movement, replay routing, etc.).<=
+br />=E2=80=A2 How much of the reported cycle reduction is directly attribu=
+table to this overlap mechanism?<br /><br />7. Generality claims are strong=
+er than the evidence<br />=E2=80=A2 The evaluation is largely limited to Re=
+sNet-18 and ViT-B/16. How does the architecture behave for other transforme=
+r variants or modern CNN families? Does the reported benefit persist across=
+ different model sizes and attention structures?<br />8. Role of the Scale =
+Fusion Unit is unclear<br />=E2=80=A2 The role of the Scale Fusion Unit is =
+not sufficiently explained. Figure 4 introduces a dedicated MAC array outsi=
+de the CIM cores, but the manuscript does not clearly describe which operat=
+ions are mapped to this unit, why they cannot be handled by the accumulator=
+ or UniStream-VPU.<br />=E2=80=A2 Is the MAC array used for residual additi=
+on, attention output accumulation/rescaling, quantization scaling, or all o=
+f the above? How frequently is it exercised by the evaluated workloads?<br =
+/>=E2=80=A2 If the Scale Fusion Unit participates in the Transformer fusion=
+ path, does it become part of the critical path during attention execution?=
+ Are its latency and energy costs included in the reported results?

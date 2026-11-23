@@ -1,0 +1,7 @@
+{
+  "mode": "partitioned",
+  "full": [{"lane": 0, "macros": [0, 1]}],
+  "projection": [{"lane": 0, "macros": [1]}],
+  "qk": [{"lane": 1, "macros": [0]}],
+  "av": [{"lane": 1, "macros": [0]}]
+}
