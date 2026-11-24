@@ -49,6 +49,8 @@
 
 `64+512` 的四网联合 EDAP 为 **1.054288**，在共同评价的 48 个候选中排名第一。排名适用于该面板的四个网络、成本模型和已验证调度。 [四网实验结论](../../experiments/docs/tile_DSE/EXPERIMENT_CONCLUSION.md)
 
+固定 `64+512` 进行映射消融时，开放同 lane 异构归约使 ResNet-18 和 VGG-16 的 EDAP 分别下降 **28.37%** 和 **22.34%**。固定 `Bq=Bk=192`，允许按角色分区使 ViT-B/16 和 ViT-L/16 的 EDAP 分别下降 **13.85%** 和 **12.69%**。这两组对照量化了相同物理资源上允许不同映射方式的整网收益。 [消融协议、整网数据和轨迹证据](../../experiments/docs/tile_DSE/MAPPING_ABLATION_64_512.md)
+
 ## 3. 与 AIG-CIM 的区别
 
 依据 [AIG-CIM 全文](../reference/AIG-CIM.pdf)，重点为第3页 §3.1–3.2、第4页 §3.3、第5页 §5.1及第6页 Table 2。
